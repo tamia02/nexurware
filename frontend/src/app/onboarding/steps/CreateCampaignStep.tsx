@@ -78,7 +78,19 @@ export default function CreateCampaignStep({ onNext, defaultCompleted }: { onNex
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium text-gray-700">Email Body</label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-700">Email Body</label>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                setSubject('Quick question about {{company}}');
+                                setBody('Hi {{firstName}},\n\nI came across {{company}} and was really impressed by your recent work.\n\nI help businesses like yours streamline their workflow. Would you be open to a brief 15-minute chat next week?\n\nBest,\n[Your Name]');
+                            }}
+                            className="text-xs text-blue-600 hover:underline"
+                        >
+                            Load Template
+                        </button>
+                    </div>
                     <textarea
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-32"
                         value={body}
