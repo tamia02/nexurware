@@ -7,7 +7,7 @@
     "postinstall": "prisma generate",
     "dev": "nodemon src/server.ts",
     "build": "tsc",
-    "start": "node dist/server.ts",
+    "start": "node dist/server.js",
     "db:push": "dotenv -e .env -- npx prisma db push",
     "db:view": "dotenv -e .env -- npx prisma studio"
   },
