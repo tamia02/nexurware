@@ -96,7 +96,35 @@ export default function SettingsPage() {
             {/* Form */}
             {showForm && (
                 <div className="bg-white p-6 rounded-lg shadow mb-8 border border-blue-100">
-                    <h3 className="text-lg font-medium mb-4">SMTP / IMAP Configuration</h3>
+                    <h3 className="text-lg font-medium mb-4">Connect New Mailbox</h3>
+
+                    {/* Provider Selection */}
+                    <div className="mb-4">
+                        <label className="block text-sm font-medium text-gray-700">Email Provider</label>
+                        <select
+                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2 bg-white"
+                            onChange={e => {
+                                const key = e.target.value;
+                                if (key === 'gmail') {
+                                    setFormData(prev => ({ ...prev, smtpHost: 'smtp.gmail.com', smtpPort: 587, imapHost: 'imap.gmail.com', imapPort: 993 }));
+                                } else if (key === 'outlook') {
+                                    setFormData(prev => ({ ...prev, smtpHost: 'smtp.office365.com', smtpPort: 587, imapHost: 'outlook.office365.com', imapPort: 993 }));
+                                } else if (key === 'zoho') {
+                                    setFormData(prev => ({ ...prev, smtpHost: 'smtp.zoho.com', smtpPort: 465, imapHost: 'imap.zoho.com', imapPort: 993 }));
+                                } else if (key === 'yahoo') {
+                                    setFormData(prev => ({ ...prev, smtpHost: 'smtp.mail.yahoo.com', smtpPort: 465, imapHost: 'imap.mail.yahoo.com', imapPort: 993 }));
+                                }
+                                // 'custom' does nothing, leaves existing values
+                            }}
+                        >
+                            <option value="gmail">Gmail / Google Workspace</option>
+                            <option value="outlook">Outlook / Office 365</option>
+                            <option value="zoho">Zoho Mail</option>
+                            <option value="yahoo">Yahoo Mail</option>
+                            <option value="custom">Custom SMTP/IMAP</option>
+                        </select>
+                    </div>
+
                     <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <div className="col-span-1">
                             <label className="block text-sm font-medium text-gray-700">Email Address</label>
@@ -109,7 +137,19 @@ export default function SettingsPage() {
                             />
                         </div>
                         <div className="col-span-1">
-                            <label className="block text-sm font-medium text-gray-700">From Name</label>
+                            <label className="block text-sm font-medium text-gray-700">App Password</label>
+                            <input
+                                required
+                                type="password"
+                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                value={formData.smtpPass}
+                                onChange={e => setFormData({ ...formData, smtpPass: e.target.value, smtpUser: formData.email, imapPass: e.target.value, imapUser: formData.email })}
+                                placeholder="••••••••••••"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Use an <strong>App Password</strong> for Gmail/Outlook.</p>
+                        </div>
+                        <div className="col-span-1">
+                            <label className="block text-sm font-medium text-gray-700">Sender Name (Optional)</label>
                             <input
                                 className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
                                 placeholder="e.g. John Doe"
@@ -118,90 +158,75 @@ export default function SettingsPage() {
                             />
                         </div>
 
-                        {/* SMTP */}
-                        <div className="col-span-2 mt-2">
-                            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                <Server className="w-4 h-4" /> SMTP Settings (Sending)
-                            </h4>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Host</label>
-                            <input
-                                required
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.smtpHost}
-                                onChange={e => setFormData({ ...formData, smtpHost: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Port</label>
-                            <input
-                                required
-                                type="number"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.smtpPort}
-                                onChange={e => setFormData({ ...formData, smtpPort: Number(e.target.value) })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Username</label>
-                            <input
-                                required
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.smtpUser}
-                                onChange={e => setFormData({ ...formData, smtpUser: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Password</label>
-                            <input
-                                required
-                                type="password"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.smtpPass}
-                                onChange={e => setFormData({ ...formData, smtpPass: e.target.value })}
-                            />
-                        </div>
 
-                        {/* IMAP */}
-                        <div className="col-span-2 mt-4">
-                            <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                                <Server className="w-4 h-4" /> IMAP Settings (Receiving)
-                            </h4>
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Host</label>
-                            <input
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.imapHost}
-                                onChange={e => setFormData({ ...formData, imapHost: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Port</label>
-                            <input
-                                type="number"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.imapPort}
-                                onChange={e => setFormData({ ...formData, imapPort: Number(e.target.value) })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Username</label>
-                            <input
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.imapUser}
-                                onChange={e => setFormData({ ...formData, imapUser: e.target.value })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700">Password</label>
-                            <input
-                                type="password"
-                                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-                                value={formData.imapPass}
-                                onChange={e => setFormData({ ...formData, imapPass: e.target.value })}
-                            />
+                        {/* Advanced Settings Toggle - Simplified for now, just always show but grouped visually different or keep basic fields hidden? 
+                            Let's keep them visible but implicitly filled, or maybe put them in a <details> block? 
+                            Let's use a details block for "Server Settings (Advanced)" 
+                        */}
+                        <div className="col-span-2">
+                            <details className="text-sm">
+                                <summary className="cursor-pointer text-gray-600 font-medium">Advanced Server Settings</summary>
+                                <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 border-t pt-4">
+                                    {/* SMTP */}
+                                    <div className="col-span-2">
+                                        <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                            <Server className="w-4 h-4" /> SMTP Settings (Sending)
+                                        </h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Host</label>
+                                        <input
+                                            required
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            value={formData.smtpHost}
+                                            onChange={e => setFormData({ ...formData, smtpHost: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Port</label>
+                                        <input
+                                            required
+                                            type="number"
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            value={formData.smtpPort}
+                                            onChange={e => setFormData({ ...formData, smtpPort: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700">SMTP Username</label>
+                                        <input
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            value={formData.smtpUser || formData.email}
+                                            onChange={e => setFormData({ ...formData, smtpUser: e.target.value })}
+                                            placeholder="Usually same as email"
+                                        />
+                                    </div>
+
+                                    {/* IMAP */}
+                                    <div className="col-span-2 mt-4">
+                                        <h4 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
+                                            <Server className="w-4 h-4" /> IMAP Settings (Receiving)
+                                        </h4>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Host</label>
+                                        <input
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            value={formData.imapHost}
+                                            onChange={e => setFormData({ ...formData, imapHost: e.target.value })}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700">Port</label>
+                                        <input
+                                            type="number"
+                                            className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
+                                            value={formData.imapPort}
+                                            onChange={e => setFormData({ ...formData, imapPort: Number(e.target.value) })}
+                                        />
+                                    </div>
+                                </div>
+                            </details>
                         </div>
 
                         <div className="col-span-2 mt-4 flex gap-2">
@@ -213,7 +238,7 @@ export default function SettingsPage() {
                             >
                                 {testing ? 'Testing...' : 'Test Connection'}
                             </Button>
-                            <Button type="submit" disabled={testing}>Save Configuration</Button>
+                            <Button type="submit" disabled={testing}>Save Mailbox</Button>
                         </div>
                     </form>
                 </div>
