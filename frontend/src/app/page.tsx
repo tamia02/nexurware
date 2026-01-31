@@ -54,9 +54,9 @@ export default function DashboardPage() {
   if (loading) return <div>Loading...</div>;
 
   const cards = [
-    { name: 'Emails Sent', value: stats?.sent, icon: Send, change: '+12%', changeType: 'increase' },
-    { name: 'Open Rate', value: `${stats?.openRate.toFixed(1)}%`, icon: Mail, change: '+2.1%', changeType: 'increase' },
-    { name: 'Reply Rate', value: `${stats?.replyRate.toFixed(1)}%`, icon: ArrowUpRight, change: '+0.5%', changeType: 'increase' },
+    { name: 'Emails Sent', value: stats?.sent || 0, icon: Send, change: '+12%', changeType: 'increase' },
+    { name: 'Open Rate', value: `${(stats?.openRate || 0).toFixed(1)}%`, icon: Mail, change: '+2.1%', changeType: 'increase' },
+    { name: 'Reply Rate', value: `${(stats?.replyRate || 0).toFixed(1)}%`, icon: ArrowUpRight, change: '+0.5%', changeType: 'increase' },
     { name: 'Click Rate', value: `${((stats?.clicked || 0) / (stats?.sent || 1) * 100).toFixed(1)}%`, icon: MousePointer2, change: '0%', changeType: 'neutral' },
   ];
 
