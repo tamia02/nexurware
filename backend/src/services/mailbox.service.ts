@@ -19,23 +19,39 @@ export class MailboxService {
             }
         }
 
-        return await prisma.mailbox.create({
-            data: {
-                email: data.email,
-                name: data.name,
-                fromName: data.fromName,
-                status: 'DISCONNECTED', // Default
-                smtpHost: data.smtpHost,
-                smtpPort: Number(data.smtpPort),
-                smtpUser: data.smtpUser,
-                smtpPass: data.smtpPass,
-                imapHost: data.imapHost,
-                imapPort: data.imapPort ? Number(data.imapPort) : null,
-                imapUser: data.imapUser,
-                imapPass: data.imapPass,
-                dailyLimit: Number(data.dailyLimit || 50),
-                workspaceId: data.workspaceId
+        const createData = {
+            email: data.email,
+            name: data.name,
+            fromName: data.fromName,
+            status: 'DISCONNECTED', // Default
+            smtpHost: data.smtpHost,
+            smtpPort: Number(data.smtpPort),
+            smtpUser: data.smtpUser,
+            smtpPass: data.smtpPass,
+            imapHost: data.imapHost,
+            imapPort: data.imapPort ? Number(data.imapPort) : null,
+            imapUser: data.imapUser,
+            imapPass: data.imapPass,
+            dailyLimit: Number(data.dailyLimit || 50),
+            workspaceId: data.workspaceId
+        };
+
+        // Check for existing mailbox (to handle previous orphans or duplicates)
+        const existing = await prisma.mailbox.findUnique({ where: { email: data.email } });
+        if (existing) {
+            if (!existing.workspaceId) {
+                // HEAL/ADOPT: Update the orphan with current workspace
+                return await prisma.mailbox.update({
+                    where: { id: existing.id },
+                    data: createData
+                });
+            } else {
+                throw new Error(`Mailbox ${data.email} is already connected to a workspace.`);
             }
+        }
+
+        return await prisma.mailbox.create({
+            data: createData
         });
     }
 
