@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
+// Force Vercel Redeploy
 export default function LandingPage() {
   return (
     <div className="bg-white">
