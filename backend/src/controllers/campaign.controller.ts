@@ -75,4 +75,14 @@ export class CampaignController {
             res.status(500).json({ error: String(error) });
         }
     }
+
+    async getLeads(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const leads = await campaignService.getCampaignLeads(id as string);
+            res.json(leads);
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
 }

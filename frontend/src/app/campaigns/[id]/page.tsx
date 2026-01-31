@@ -28,6 +28,7 @@ export default function CampaignDetailsPage() {
 
     const [campaign, setCampaign] = useState<Campaign | null>(null);
     const [stats, setStats] = useState<CampaignStats | null>(null);
+    const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [activeTab, setActiveTab] = useState<'leads' | 'sequences'>('sequences');
 
@@ -35,24 +36,39 @@ export default function CampaignDetailsPage() {
         if (!id) return;
 
         let mounted = true;
+        let interval: NodeJS.Timeout;
         setLoading(true);
 
-        Promise.all([
-            api.get(`/campaigns/${id}`),
-            api.get(`/analytics/campaigns/${id}`)
-        ]).then(([campRes, statsRes]) => {
-            if (mounted) {
-                setCampaign(campRes.data);
-                setStats(statsRes.data);
-            }
-        })
-            .catch(console.error)
-            .finally(() => {
-                if (mounted) setLoading(false);
-            });
+        const fetchData = (isInitial = false) => {
+            Promise.all([
+                api.get(`/campaigns/${id}`),
+                api.get(`/analytics/campaigns/${id}`),
+                api.get(`/campaigns/${id}/leads`)
+            ]).then(([campRes, statsRes, leadsRes]) => {
+                if (mounted) {
+                    setCampaign(campRes.data);
+                    setStats(statsRes.data);
+                    setLeads(leadsRes.data || []);
+                    if (isInitial) setLoading(false);
+                }
+            })
+                .catch((err) => {
+                    console.error(err);
+                    if (mounted && isInitial) setLoading(false);
+                });
+        };
 
-        return () => { mounted = false; };
-    }, [id]);
+        fetchData(true);
+
+        if (activeTab === 'leads') {
+            interval = setInterval(() => fetchData(false), 5000);
+        }
+
+        return () => {
+            mounted = false;
+            clearInterval(interval);
+        };
+    }, [id, activeTab]);
 
     if (loading) return <div>Loading...</div>;
     if (!campaign) return <div>Campaign not found</div>;
@@ -143,13 +159,46 @@ export default function CampaignDetailsPage() {
                 )}
 
                 {activeTab === 'leads' && (
-                    <div className="text-center py-10 text-gray-500">
-                        {/* 
-                           TODO: We need an endpoint to get leads FOR A CAMPAIGN with their status
-                           For now, this is a placeholder. 
-                        */}
-                        <p>Lead List View integration coming soon.</p>
-                        <p className="text-xs mt-2">Use the global leads page for now.</p>
+                    <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</th>
+                                </tr>
+                            </thead>
+                            <tbody className="bg-white divide-y divide-gray-200">
+                                {leads.map((job) => (
+                                    <tr key={job.id}>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{job.lead?.email}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap">
+                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                ${job.status === 'CONTACTED' ? 'bg-green-100 text-green-800' :
+                                                    job.status === 'REPLIED' ? 'bg-blue-100 text-blue-800' :
+                                                        job.status === 'NEW' ? 'bg-gray-100 text-gray-800' :
+                                                            'bg-red-100 text-red-800'}`}>
+                                                {job.status}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            Step {job.currentStep + 1}
+                                        </td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                            {job.nextActionAt ? new Date(job.nextActionAt).toLocaleString() : '-'}
+                                        </td>
+                                    </tr>
+                                ))}
+                                {leads.length === 0 && (
+                                    <tr>
+                                        <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
+                                            No leads in this campaign yet.
+                                        </td>
+                                    </tr>
+                                )}
+                            </tbody>
+                        </table>
                     </div>
                 )}
             </div>

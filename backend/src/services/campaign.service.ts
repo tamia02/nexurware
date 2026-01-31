@@ -114,4 +114,12 @@ export class CampaignService {
             data: { status }
         });
     }
+
+    async getCampaignLeads(campaignId: string) {
+        return await prisma.campaignLead.findMany({
+            where: { campaignId },
+            include: { lead: true },
+            orderBy: { nextActionAt: 'asc' }
+        });
+    }
 }

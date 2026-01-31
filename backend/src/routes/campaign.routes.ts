@@ -15,5 +15,6 @@ router.post('/:id/steps', controller.addStep.bind(controller));
 
 // Manage Leads in Campaign
 router.post('/:id/leads', controller.addLead.bind(controller));
+router.get('/:id/leads', controller.getLeads.bind(controller));
 
 export default router;

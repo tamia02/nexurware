@@ -163,7 +163,15 @@ export class SchedulerService {
 
             } catch (err) {
                 console.error(`[Scheduler] Failed to send email to ${job.lead.email}`, err);
-                // Retry logic could go here
+
+                await prisma.campaignLead.update({
+                    where: { id: job.id },
+                    data: { status: 'FAILED' }
+                });
+
+                await eventService.logEvent('EMAIL_FAILED', job.campaign.id, job.lead.id, {
+                    error: String(err)
+                });
             }
         }
     }

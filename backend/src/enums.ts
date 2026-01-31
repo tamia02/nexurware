@@ -7,7 +7,8 @@ export const LeadStatus = {
     BOUNCED: 'BOUNCED',
     UNSUBSCRIBED: 'UNSUBSCRIBED',
     IGNORED: 'IGNORED',
-    INVALID: 'INVALID'
+    INVALID: 'INVALID',
+    FAILED: 'FAILED'
 } as const;
 
 export type LeadStatus = keyof typeof LeadStatus;
@@ -28,7 +29,8 @@ export const EventType = {
     LINK_CLICKED: 'LINK_CLICKED',
     REPLY_RECEIVED: 'REPLY_RECEIVED',
     BOUNCED: 'BOUNCED',
-    BOOKED: 'BOOKED'
+    BOOKED: 'BOOKED',
+    EMAIL_FAILED: 'EMAIL_FAILED'
 } as const;
 
 export type EventType = keyof typeof EventType;

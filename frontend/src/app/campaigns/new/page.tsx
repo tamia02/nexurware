@@ -37,7 +37,16 @@ export default function NewCampaignPage() {
     // Load Data
     useEffect(() => {
         api.get('/mailboxes').then(res => setMailboxes(res.data));
-        api.get('/leads?limit=1000').then(res => setLeads(res.data)); // Simple list for now
+        api.get('/leads?limit=1000').then(res => {
+            const data = res.data;
+            if (data && Array.isArray(data.data)) {
+                setLeads(data.data);
+            } else if (Array.isArray(data)) {
+                setLeads(data);
+            } else {
+                setLeads([]);
+            }
+        });
     }, []);
 
     // Handlers
