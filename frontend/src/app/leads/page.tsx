@@ -28,6 +28,7 @@ export default function LeadsPage() {
     // Import Modal State
     const [showImport, setShowImport] = useState(false);
     const [importText, setImportText] = useState('');
+    const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importing, setImporting] = useState(false);
 
     // Debounce search
@@ -96,13 +97,13 @@ export default function LeadsPage() {
     };
 
     const handleImport = async () => {
-        if (!importText.trim()) return;
+        if (!importText.trim() && !selectedFile) return;
         setImporting(true);
 
-        Papa.parse(importText, {
+        const parseConfig = {
             header: true,
             skipEmptyLines: true,
-            complete: async (results) => {
+            complete: async (results: any) => {
                 const parsedLeads = results.data;
                 if (parsedLeads.length === 0) {
                     alert("No valid rows found in CSV.");
@@ -111,10 +112,19 @@ export default function LeadsPage() {
                 }
 
                 try {
-                    await api.post('/leads/bulk', { leads: parsedLeads });
-                    alert(`Successfully imported ${parsedLeads.length} leads!`);
+                    const res = await api.post('/leads/bulk', { leads: parsedLeads });
+                    const { created, updated, errors } = res.data;
+
+                    let message = `Import Complete: ${created} Created, ${updated} Updated.`;
+                    if (errors && errors.length > 0) {
+                        message += `\n${errors.length} Failed (check console for details).`;
+                        console.error('Import Errors:', errors);
+                    }
+
+                    alert(message);
                     setShowImport(false);
                     setImportText('');
+                    setSelectedFile(null);
                     fetchLeads(1);
                 } catch (err: any) {
                     alert('Import failed: ' + (err.response?.data?.error || String(err)));
@@ -126,7 +136,13 @@ export default function LeadsPage() {
                 alert('CSV Parsing Error: ' + err.message);
                 setImporting(false);
             }
-        });
+        };
+
+        if (selectedFile) {
+            Papa.parse(selectedFile, parseConfig);
+        } else {
+            Papa.parse(importText, parseConfig);
+        }
     };
 
     return (
@@ -195,13 +211,43 @@ export default function LeadsPage() {
                             </button>
                         </div>
                         <p className="text-sm text-gray-500 mb-2">
-                            Paste your CSV data below. Headers must be: <code>email, firstName, lastName, company</code>
+                            Upload a CSV file OR paste text below. Headers must be: <code>email, firstName, lastName, company</code>
                         </p>
+
+                        <div className="mb-4">
+                            <input
+                                type="file"
+                                accept=".csv"
+                                onChange={(e) => {
+                                    if (e.target.files && e.target.files[0]) {
+                                        setSelectedFile(e.target.files[0]);
+                                        setImportText(''); // Clear text if file selected
+                                    }
+                                }}
+                                className="block w-full text-sm text-gray-500
+                                    file:mr-4 file:py-2 file:px-4
+                                    file:rounded-full file:border-0
+                                    file:text-sm file:font-semibold
+                                    file:bg-blue-50 file:text-blue-700
+                                    hover:file:bg-blue-100"
+                            />
+                        </div>
+
+                        <div className="relative flex py-2 items-center">
+                            <div className="flex-grow border-t border-gray-300"></div>
+                            <span className="flex-shrink mx-4 text-gray-400">OR</span>
+                            <div className="flex-grow border-t border-gray-300"></div>
+                        </div>
+
                         <textarea
-                            className="w-full h-48 border rounded-md p-2 font-mono text-sm"
+                            className="w-full h-32 border rounded-md p-2 font-mono text-sm"
                             placeholder={"email,firstName,lastName,company\njohn@example.com,John,Doe,Acme Inc"}
                             value={importText}
-                            onChange={(e) => setImportText(e.target.value)}
+                            onChange={(e) => {
+                                setImportText(e.target.value);
+                                if (e.target.value) setSelectedFile(null); // Clear file if typing
+                            }}
+                            disabled={!!selectedFile}
                         />
                         <div className="mt-4 flex justify-end gap-2">
                             <Button variant="outline" onClick={() => setShowImport(false)}>Cancel</Button>

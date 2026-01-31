@@ -51,7 +51,14 @@ export default function NewLeadPage() {
             }
 
             const res = await api.post('/leads/bulk', { leads });
-            alert(`Imported ${res.data.created} new leads, updated ${res.data.updated} existing.`);
+            const { created, updated, errors } = res.data;
+            let message = `Imported ${created} new leads, updated ${updated} existing.`;
+
+            if (errors && errors.length > 0) {
+                message += `\n${errors.length} Failed. Check console for details.`;
+                console.warn("Import errors:", errors);
+            }
+            alert(message);
             router.push('/leads');
         } catch (err) {
             console.error(err);
