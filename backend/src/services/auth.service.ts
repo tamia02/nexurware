@@ -80,4 +80,25 @@ export class AuthService {
     verifyToken(token: string) {
         return jwt.verify(token, JWT_SECRET);
     }
+
+    async updateProfile(userId: string, data: { name?: string, password?: string, oldPassword?: string }) {
+        const user = await prisma.user.findUnique({ where: { id: userId } });
+        if (!user) throw new Error('User not found');
+
+        const updateData: any = {};
+        if (data.name) updateData.name = data.name;
+
+        if (data.password) {
+            if (!data.oldPassword) throw new Error('Old password required to set new password');
+            const valid = await bcrypt.compare(data.oldPassword, user.password);
+            if (!valid) throw new Error('Invalid old password');
+            updateData.password = await bcrypt.hash(data.password, 10);
+        }
+
+        return await prisma.user.update({
+            where: { id: userId },
+            data: updateData,
+            select: { id: true, email: true, name: true, workspaceId: true }
+        });
+    }
 }

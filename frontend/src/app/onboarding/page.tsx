@@ -30,7 +30,7 @@ export default function OnboardingWizard() {
             // Or just let them go through it. 
             // If completely done, redirect to dashboard.
             if (res.data.completed) {
-                router.push('/');
+                router.push('/dashboard');
             }
         } catch (err) {
             console.error(err);

@@ -32,4 +32,16 @@ export class AuthController {
         // @ts-ignore
         res.json({ user: req.user });
     }
+
+    async updateProfile(req: Request, res: Response) {
+        try {
+            // @ts-ignore
+            const userId = req.user.userId;
+            const { name, password, oldPassword } = req.body;
+            const updatedUser = await authService.updateProfile(userId, { name, password, oldPassword });
+            res.json({ user: updatedUser });
+        } catch (error) {
+            res.status(400).json({ error: String(error) });
+        }
+    }
 }
