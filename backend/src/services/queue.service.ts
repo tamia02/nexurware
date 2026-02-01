@@ -19,7 +19,7 @@ export class QueueService {
         senderEmail: string;
         senderName: string;
         campaignLeadId?: string;
-    }) {
+    }, opts?: { delay?: number }) {
         return await emailQueue.add('send-email', data, {
             attempts: 3,
             backoff: {
@@ -27,7 +27,8 @@ export class QueueService {
                 delay: 2000
             },
             removeOnComplete: true,
-            removeOnFail: false
+            removeOnFail: false,
+            delay: opts?.delay || 0
         });
     }
 

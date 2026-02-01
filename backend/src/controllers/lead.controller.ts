@@ -56,6 +56,29 @@ export class LeadController {
         }
     }
 
+    async analyze(req: Request, res: Response) {
+        try {
+            // No auth required strictly for tool use, but good for rate limiting if we had users
+            // Allowing public access for now or auth depending on requirement. 
+            // The file shows AuthRequest used elsewhere.
+            const { emails } = req.body;
+            if (!emails || !Array.isArray(emails)) {
+                return res.status(400).json({ error: "Expected { emails: string[] }" });
+            }
+
+            // Lazy load service to avoid cyclic deps if any (though none here)
+            // Or just instantiate new one
+            const { LeadAnalysisService } = await import('../services/lead-analysis.service');
+            const analysisService = new LeadAnalysisService();
+
+            const results = await Promise.all(emails.map(e => analysisService.analyzeEmail(e)));
+
+            res.json({ results });
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
+
     async bulkDelete(req: Request, res: Response) {
         try {
             const { ids } = req.body;

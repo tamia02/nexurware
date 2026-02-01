@@ -14,6 +14,9 @@ interface Mailbox {
     smtpHost: string;
     smtpPort: number;
     imapHost?: string;
+    dailyLimit: number;
+    warmupEnabled: boolean;
+    warmupStartedAt?: string;
 }
 
 export default function SettingsPage() {
@@ -220,10 +223,38 @@ export default function SettingsPage() {
                             {mailboxes.length === 0 ? <li className="p-8 text-center text-gray-500">No mailboxes connected.</li> : mailboxes.map(mb => (
                                 <li key={mb.id} className="p-4 flex justify-between items-center">
                                     <div>
-                                        <p className="font-medium text-gray-900">{mb.email}</p>
-                                        <p className="text-sm text-gray-500">{mb.smtpHost}:{mb.smtpPort}</p>
+                                        <div className="flex items-center gap-2">
+                                            <p className="font-medium text-gray-900">{mb.email}</p>
+                                            {mb.warmupEnabled && (
+                                                <span className="inline-flex items-center rounded-md bg-green-50 px-2 py-1 text-xs font-medium text-green-700 ring-1 ring-inset ring-green-600/20">
+                                                    Warmup Active
+                                                </span>
+                                            )}
+                                        </div>
+                                        <p className="text-sm text-gray-500">
+                                            {mb.smtpHost}:{mb.smtpPort}
+                                            <span className="mx-2">•</span>
+                                            Limit: {mb.dailyLimit}/day
+                                        </p>
                                     </div>
-                                    <button onClick={() => handleDelete(mb.id)} className="text-red-600 hover:text-red-900"><Trash className="w-4 h-4" /></button>
+                                    <div className="flex items-center gap-4">
+                                        <button
+                                            onClick={async () => {
+                                                const newState = !mb.warmupEnabled;
+                                                if (confirm(`Turn warmup ${newState ? 'ON' : 'OFF'} for ${mb.email}?`)) {
+                                                    await api.put(`/mailboxes/${mb.id}`, {
+                                                        warmupEnabled: newState
+                                                        // We rely on backend to set StartedAt
+                                                    });
+                                                    loadMailboxes();
+                                                }
+                                            }}
+                                            className="text-sm text-blue-600 hover:text-blue-800"
+                                        >
+                                            {mb.warmupEnabled ? 'Disable Warmup' : 'Enable Warmup'}
+                                        </button>
+                                        <button onClick={() => handleDelete(mb.id)} className="text-red-600 hover:text-red-900"><Trash className="w-4 h-4" /></button>
+                                    </div>
                                 </li>
                             ))}
                         </ul>

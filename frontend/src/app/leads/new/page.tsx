@@ -152,8 +152,41 @@ export default function NewLeadPage() {
                                     onChange={e => setBulkJson(e.target.value)}
                                 />
                             </div>
-                            <div className="pt-2">
-                                <Button type="submit" disabled={isSubmitting} className="w-full">
+
+                            {/* Analysis Section */}
+                            <div className="flex gap-2">
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={async () => {
+                                        try {
+                                            const leads = JSON.parse(bulkJson);
+                                            if (!Array.isArray(leads)) throw new Error("Not an array");
+                                            const emails = leads.map(l => l.email).filter(Boolean);
+                                            if (emails.length === 0) {
+                                                alert("No emails found in JSON");
+                                                return;
+                                            }
+
+                                            // Call Analysis API
+                                            const res = await api.post('/leads/analyze', { emails });
+                                            const results = res.data.results;
+
+                                            // Summarize
+                                            const risky = results.filter((r: any) => r.risk === 'HIGH').length;
+                                            const disposable = results.filter((r: any) => r.isDisposable).length;
+
+                                            alert(`Analysis Complete:\nTotal: ${results.length}\nRisky: ${risky}\nDisposable: ${disposable}\n\nCheck console for details.`);
+                                            console.table(results);
+                                        } catch (e) {
+                                            alert("Invalid JSON or Error: " + e);
+                                        }
+                                    }}
+                                >
+                                    Analyze Risks
+                                </Button>
+                                <Button type="submit" disabled={isSubmitting} className="flex-1">
                                     <Upload className="w-4 h-4 mr-2" />
                                     Import Leads
                                 </Button>

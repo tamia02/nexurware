@@ -33,7 +33,9 @@ export class MailboxService {
             imapUser: data.imapUser,
             imapPass: data.imapPass,
             dailyLimit: Number(data.dailyLimit || 50),
-            workspaceId: data.workspaceId
+            workspaceId: data.workspaceId,
+            warmupEnabled: data.warmupEnabled || false,
+            warmupStartedAt: data.warmupEnabled ? new Date() : null
         };
 
         // Check for existing mailbox (to handle previous orphans or duplicates)
@@ -90,7 +92,8 @@ export class MailboxService {
                 name: data.name,
                 fromName: data.fromName,
                 dailyLimit: data.dailyLimit ? Number(data.dailyLimit) : undefined,
-                // Add other editable fields if needed
+                warmupEnabled: data.warmupEnabled,
+                warmupStartedAt: data.warmupEnabled === true ? new Date() : (data.warmupEnabled === false ? null : undefined)
             }
         });
     }

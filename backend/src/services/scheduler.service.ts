@@ -70,15 +70,47 @@ export class SchedulerService {
                 campaign: { include: { sequences: true, mailbox: true } },
                 lead: true
             },
-            take: 50
+            take: 50 // Bulk fetch
         });
 
+        // Group by Mailbox to manage per-mailbox throttling
+        const jobsByMailbox: Record<string, typeof jobs> = {};
         for (const job of jobs) {
-            await this.processJob(job);
+            const mailboxId = job.campaign.mailboxId;
+            if (!mailboxId) continue;
+            if (!jobsByMailbox[mailboxId]) jobsByMailbox[mailboxId] = [];
+            jobsByMailbox[mailboxId].push(job);
+        }
+
+        // Process each mailbox's batch with staggered delays
+        for (const mailboxId in jobsByMailbox) {
+            const mailboxJobs = jobsByMailbox[mailboxId];
+            if (mailboxJobs.length === 0) continue;
+
+            // Calculate "Spread"
+            // If Daily limit is 50, we want to be safe.
+            // Let's assume a working day of 10 hours = 36000 seconds.
+            // Gap = 36000 / 50 = ~720 seconds (12 mins) between emails? That's very safe.
+            // The user wants "Outreach" style => maybe faster, but smooth.
+            // Let's default to a "Human" gap of ~30-60 seconds minimum + random jitter.
+
+            // Getting the actual usage to maybe slow down as we approach limit? 
+            // For now, let's use a standard "Smart Gap" of 45 seconds + random jitter.
+
+            for (let i = 0; i < mailboxJobs.length; i++) {
+                const baseDelay = 45000; // 45 seconds
+                const jitter = Math.floor(Math.random() * 10000); // 0-10s jitter
+                const stagger = i * (baseDelay + jitter);
+
+                // We don't want to wait 5 hours if we just started the server.
+                // But this guarantees we don't send 50 at once.
+
+                await this.processJob(mailboxJobs[i], stagger);
+            }
         }
     }
 
-    async processJob(job: any) {
+    async processJob(job: any, delay: number = 0) {
         const currentStepIndex = job.currentStep;
         const sequences = job.campaign.sequences as Sequence[];
 
@@ -105,6 +137,7 @@ export class SchedulerService {
 
             try {
                 // Phase 2: Queuing with Rate Limits (handled by QueueService config)
+                // Now with Smart Sending Delay
                 const jobId = await QueueService.addEmailJob({
                     campaignId: job.campaign.id,
                     leadId: job.lead.id,
@@ -112,7 +145,7 @@ export class SchedulerService {
                     subject: subject,
                     senderEmail: mailbox.email,
                     senderName: mailbox.name || 'Nexusware User'
-                });
+                }, { delay });
 
                 // Optimistic Update
                 const nextStepIndex = currentStepIndex + 1;

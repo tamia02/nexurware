@@ -28,6 +28,7 @@ export default function ConnectMailboxStep({ onNext, defaultCompleted }: { onNex
     const [error, setError] = useState('');
     const [success, setSuccess] = useState(defaultCompleted || false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [warmupEnabled, setWarmupEnabled] = useState(true);
 
     if (success) {
         return (
@@ -68,7 +69,8 @@ export default function ConnectMailboxStep({ onNext, defaultCompleted }: { onNex
                 smtpPort,
                 imapHost,
                 imapPort,
-                name: PRESETS[provider]?.name || 'Custom'
+                name: PRESETS[provider]?.name || 'Custom',
+                warmupEnabled
             });
             setSuccess(true);
         } catch (err: any) {
@@ -167,6 +169,17 @@ export default function ConnectMailboxStep({ onNext, defaultCompleted }: { onNex
                         </div>
                     </div>
                 )}
+
+                <div className="flex items-center gap-2">
+                    <input
+                        type="checkbox"
+                        id="warmup"
+                        className="rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50"
+                        checked={warmupEnabled}
+                        onChange={e => setWarmupEnabled(e.target.checked)}
+                    />
+                    <label htmlFor="warmup" className="text-sm text-gray-700">Enable Warmup Mode (Recommended for new domains)</label>
+                </div>
 
                 <Button type="submit" className="w-full" disabled={loading}>
                     {loading ? 'Connecting...' : 'Connect Account'}
