@@ -56,6 +56,7 @@ model Lead {
 
   campaignLeads CampaignLead[]
   events        Event[]
+  emailMessages EmailMessage[]
 }
 
 model Campaign {
@@ -133,6 +134,7 @@ model Mailbox {
   warmupStartedAt DateTime?
   
   campaigns   Campaign[]
+  emailMessages EmailMessage[]
 }
 
 model Event {
@@ -145,6 +147,29 @@ model Event {
   createdAt  DateTime  @default(now())
   campaign   Campaign? @relation(fields: [campaignId], references: [id])
   lead       Lead?     @relation(fields: [leadId], references: [id])
-  @@index([type])
   @@index([campaignId])
+}
+
+model EmailMessage {
+  id        String   @id @default(uuid())
+  mailboxId String
+  leadId    String?
+  remoteId  String   // IMAP UID
+  subject   String?
+  snippet   String?
+  body      String?  
+  htmlBody  String?
+  fromEmail String
+  toEmail   String
+  receivedAt DateTime
+  isRead    Boolean  @default(false)
+  folder    String   @default("INBOX")
+  createdAt DateTime @default(now())
+
+  mailbox   Mailbox @relation(fields: [mailboxId], references: [id])
+  lead      Lead?   @relation(fields: [leadId], references: [id])
+  
+  @@unique([mailboxId, remoteId])
+  @@index([mailboxId])
+  @@index([leadId])
 }

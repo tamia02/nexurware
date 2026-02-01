@@ -29,6 +29,9 @@ export default function NewCampaignPage() {
     // Form State
     const [campaignName, setCampaignName] = useState('');
     const [selectedMailbox, setSelectedMailbox] = useState('');
+    const [startTime, setStartTime] = useState('09:00');
+    const [endTime, setEndTime] = useState('17:00');
+    const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [sequences, setSequences] = useState<Step[]>([
         { type: 'EMAIL', subject: '', body: '', order: 0 }
@@ -79,7 +82,10 @@ export default function NewCampaignPage() {
             // 1. Create Campaign
             const campaignRes = await api.post('/campaigns', {
                 name: campaignName,
-                mailboxId: selectedMailbox
+                mailboxId: selectedMailbox,
+                startTime,
+                endTime,
+                timezone
             });
             const campaignId = campaignRes.data.id;
 
@@ -149,6 +155,24 @@ export default function NewCampaignPage() {
                                 <option value="">Select a mailbox...</option>
                                 {mailboxes.map(mb => (
                                     <option key={mb.id} value={mb.id}>{mb.email}</option>
+                                ))}
+                            </select>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Start Time ({timezone})</label>
+                                <input className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">End Time</label>
+                                <input className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+                            </div>
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700">Timezone</label>
+                            <select className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" value={timezone} onChange={e => setTimezone(e.target.value)}>
+                                {Intl.supportedValuesOf('timeZone').map(tz => (
+                                    <option key={tz} value={tz}>{tz}</option>
                                 ))}
                             </select>
                         </div>

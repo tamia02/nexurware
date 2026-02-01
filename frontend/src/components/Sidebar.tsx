@@ -3,10 +3,12 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { clsx } from 'clsx';
-import { LayoutDashboard, Users, LayoutList, Settings, CreditCard, BarChart3, Puzzle } from 'lucide-react';
+import { LayoutDashboard, Users, LayoutList, Settings, CreditCard, BarChart3, Puzzle, Inbox } from 'lucide-react';
 
 const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    { name: 'Analytics', href: '/analytics', icon: BarChart3 },
+    { name: 'Inbox', href: '/inbox', icon: Inbox },
     { name: 'Leads', href: '/leads', icon: Users },
     { name: 'Campaigns', href: '/campaigns', icon: LayoutList },
     { name: 'Billing', href: '/billing', icon: CreditCard },

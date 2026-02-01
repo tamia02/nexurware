@@ -1,15 +1,17 @@
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 export class ImapService {
 
-    // ... helper for connection ...
     private connect(mailbox: any): Promise<Imap> {
         return new Promise((resolve, reject) => {
             const imap = new Imap({
                 user: mailbox.email,
-                password: mailbox.appPassword || mailbox.password, // Handle app passwords
-                host: mailbox.imapHost || 'imap.gmail.com', // Default to gmail if missing (should be in DB)
+                password: mailbox.appPassword || mailbox.password,
+                host: mailbox.imapHost || 'imap.gmail.com',
                 port: mailbox.imapPort || 993,
                 tls: true,
                 tlsOptions: { rejectUnauthorized: false },
@@ -18,12 +20,11 @@ export class ImapService {
 
             imap.once('ready', () => resolve(imap));
             imap.once('error', (err: any) => reject(err));
-            imap.end(); // Wait, this closes it immediately? No, don't call end here.
+            imap.end();
             imap.connect();
         });
     }
 
-    // Fixed connect helper that returns connected instance
     private async getImapConnection(mailbox: any): Promise<Imap> {
         return new Promise((resolve, reject) => {
             const imap = new Imap({
@@ -41,20 +42,10 @@ export class ImapService {
         });
     }
 
-
-    /**
-     * Check for Replies in Inbox
-     */
     async checkReplies(mailbox: any): Promise<string[]> {
-        // Implementation omitted for brevity, keeping existing logic structure
-        // In full version, this scans INBOX for new messages since last check
         return [];
     }
 
-    /**
-     * PHASE 2: Check for Bounces
-     * Scans for "Mailer-Daemon" or "Failure" subjects
-     */
     async checkBounces(mailbox: any): Promise<string[]> {
         return new Promise(async (resolve, reject) => {
             let imap: Imap;
@@ -71,8 +62,6 @@ export class ImapService {
                     return resolve([]);
                 }
 
-                // Search for Bounces (simplified criteria)
-                // UIDs since last check? For now, search UNSEEN from 'MAILER-DAEMON'
                 imap.search([['FROM', 'mailer-daemon']], (err: any, results: number[]) => {
                     if (err || !results || results.length === 0) {
                         imap.end();
@@ -85,9 +74,6 @@ export class ImapService {
                     fetch.on('message', (msg: any) => {
                         msg.on('body', (stream: any) => {
                             simpleParser(stream, async (err, parsed) => {
-                                // Extract original recipient from bounce body? Hard.
-                                // Typically "Failed to deliver to <original@email.com>"
-                                // For MVP, we just Log it.
                                 console.log(`[Bounce] Found bounce: ${parsed.subject}`);
                             });
                         });
@@ -101,6 +87,85 @@ export class ImapService {
                         imap.end();
                         resolve(bouncedEmails);
                     });
+                });
+            });
+        });
+    }
+
+    async syncInbox(mailbox: any, limit: number = 20): Promise<void> {
+        return new Promise(async (resolve, reject) => {
+            let imap: Imap;
+            try {
+                imap = await this.getImapConnection(mailbox);
+            } catch (err) {
+                console.error(`[IMAP] Connection failed for ${mailbox.email}:`, err);
+                return resolve();
+            }
+
+            imap.openBox('INBOX', false, (err: any, box: any) => {
+                if (err) {
+                    imap.end();
+                    return resolve();
+                }
+
+                const total = box.messages.total;
+                const start = Math.max(1, total - limit + 1);
+
+                if (total === 0) {
+                    imap.end();
+                    return resolve();
+                }
+
+                const fetch = imap.seq.fetch(`${start}:*`, { bodies: '', struct: true });
+
+                fetch.on('message', (msg: any, seqno: number) => {
+                    let uid = '';
+                    let date = new Date();
+
+                    msg.once('attributes', (attrs: any) => {
+                        uid = String(attrs.uid);
+                        date = attrs.date;
+                    });
+
+                    msg.on('body', (stream: any) => {
+                        simpleParser(stream, async (err, parsed) => {
+                            if (err) return;
+
+                            const fromEmail = parsed.from?.value?.[0]?.address || '';
+                            const toEmail = (parsed.to as any)?.value?.[0]?.address || (parsed.to as any)?.text || '';
+                            const subject = parsed.subject || '(No Subject)';
+                            const body = parsed.text || '';
+                            const htmlBody = parsed.html || '';
+
+                            const lead = await prisma.lead.findFirst({ where: { email: fromEmail } });
+
+                            try {
+                                await prisma.emailMessage.upsert({
+                                    where: { mailboxId_remoteId: { mailboxId: mailbox.id, remoteId: String(uid || seqno) } },
+                                    update: {},
+                                    create: {
+                                        mailboxId: mailbox.id,
+                                        leadId: lead?.id,
+                                        remoteId: String(uid || seqno),
+                                        subject: subject.substring(0, 200),
+                                        body: body,
+                                        htmlBody: htmlBody,
+                                        fromEmail,
+                                        toEmail,
+                                        receivedAt: date,
+                                        isRead: false
+                                    }
+                                });
+                            } catch (e) {
+                                console.error('[Sync] Error saving email:', e);
+                            }
+                        });
+                    });
+                });
+
+                fetch.once('end', () => {
+                    imap.end();
+                    resolve();
                 });
             });
         });

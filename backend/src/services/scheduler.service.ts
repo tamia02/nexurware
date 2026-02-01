@@ -6,6 +6,7 @@ import { EventService } from './event.service';
 import { ImapService } from './imap.service';
 import { QueueService } from './queue.service';
 import { WarmupService } from './warmup.service'; // Phase 3
+import { formatInTimeZone } from 'date-fns-tz'; // Phase 2: Timezones
 import { CampaignStatus } from '../enums';
 
 const prisma = new PrismaClient();
@@ -75,7 +76,48 @@ export class SchedulerService {
 
         // Group by Mailbox to manage per-mailbox throttling
         const jobsByMailbox: Record<string, typeof jobs> = {};
+        const skippedJobIds: string[] = [];
+
+        // Check Windows (Phase 2)
+        const validJobs = [];
         for (const job of jobs) {
+            const campaign = job.campaign;
+            if (campaign.timezone && campaign.startTime && campaign.endTime) {
+                const currentHour = parseInt(formatInTimeZone(now, campaign.timezone, 'HH'));
+                const startHour = parseInt(campaign.startTime.split(':')[0]);
+                const endHour = parseInt(campaign.endTime.split(':')[0]);
+
+                if (currentHour < startHour || currentHour >= endHour) {
+                    // Outside Window. Reschedule.
+                    // Simple Reschedule: Check back in 1 hour or calculate delay?
+                    // Calculate delay until StartHour (today or tomorrow)
+                    let delayMs = 60 * 60 * 1000; // Default 1 hr
+
+                    if (currentHour >= endHour) {
+                        // Tomorrow at StartHour
+                        // (24 - Current + Start) hours
+                        delayMs = (24 - currentHour + startHour) * 3600 * 1000;
+                    } else if (currentHour < startHour) {
+                        // Today at StartHour
+                        delayMs = (startHour - currentHour) * 3600 * 1000;
+                    }
+
+                    // Add a bit of jitter (0-5 mins) to avoid thundering herd at 09:00:00
+                    delayMs += Math.random() * 5 * 60 * 1000;
+
+                    await prisma.campaignLead.update({
+                        where: { id: job.id },
+                        data: { nextActionAt: new Date(now.getTime() + delayMs) }
+                    });
+                    skippedJobIds.push(job.id);
+                    continue;
+                }
+            }
+            validJobs.push(job);
+        }
+
+        // Group Valid Jobs
+        for (const job of validJobs) {
             const mailboxId = job.campaign.mailboxId;
             if (!mailboxId) continue;
             if (!jobsByMailbox[mailboxId]) jobsByMailbox[mailboxId] = [];
@@ -87,23 +129,10 @@ export class SchedulerService {
             const mailboxJobs = jobsByMailbox[mailboxId];
             if (mailboxJobs.length === 0) continue;
 
-            // Calculate "Spread"
-            // If Daily limit is 50, we want to be safe.
-            // Let's assume a working day of 10 hours = 36000 seconds.
-            // Gap = 36000 / 50 = ~720 seconds (12 mins) between emails? That's very safe.
-            // The user wants "Outreach" style => maybe faster, but smooth.
-            // Let's default to a "Human" gap of ~30-60 seconds minimum + random jitter.
-
-            // Getting the actual usage to maybe slow down as we approach limit? 
-            // For now, let's use a standard "Smart Gap" of 45 seconds + random jitter.
-
             for (let i = 0; i < mailboxJobs.length; i++) {
                 const baseDelay = 45000; // 45 seconds
                 const jitter = Math.floor(Math.random() * 10000); // 0-10s jitter
                 const stagger = i * (baseDelay + jitter);
-
-                // We don't want to wait 5 hours if we just started the server.
-                // But this guarantees we don't send 50 at once.
 
                 await this.processJob(mailboxJobs[i], stagger);
             }
