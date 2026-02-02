@@ -52,6 +52,21 @@ const worker = new Worker('email-sending-queue', async (job) => {
 
     } catch (err) {
         console.error(`[Worker] Job ${job.id} Failed:`, err);
+
+        // If this was the last attempt, mark as failed in DB
+        // @ts-ignore
+        if (job.attemptsMade >= (job.opts.attempts || 3) - 1) {
+            if (campaignLeadId) {
+                try {
+                    await prisma.campaignLead.update({
+                        where: { id: campaignLeadId },
+                        data: { status: 'FAILED', failureReason: String(err) }
+                    });
+                } catch (dbErr) {
+                    console.error('[Worker] Failed to update DB status:', dbErr);
+                }
+            }
+        }
         throw err; // Triggers BullMQ retry
     }
 }, {

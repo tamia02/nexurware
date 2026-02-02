@@ -181,6 +181,11 @@ export default function CampaignDetailsPage() {
                                                             'bg-red-100 text-red-800'}`}>
                                                 {job.status}
                                             </span>
+                                            {job.status === 'FAILED' && job.failureReason && (
+                                                <div className="text-xs text-red-600 mt-1 max-w-[200px] truncate" title={job.failureReason}>
+                                                    {job.failureReason}
+                                                </div>
+                                            )}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                             Step {job.currentStep + 1}

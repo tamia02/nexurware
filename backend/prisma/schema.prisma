@@ -99,6 +99,7 @@ model CampaignLead {
   campaignId String
   leadId     String
   status     String   @default("NEW")
+  failureReason String?
   currentStep  Int      @default(0) 
   nextActionAt DateTime?            
   campaign   Campaign @relation(fields: [campaignId], references: [id])

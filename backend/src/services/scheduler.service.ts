@@ -206,7 +206,10 @@ export class SchedulerService {
                 });
             } catch (err) {
                 console.error(`[Scheduler] Queue Error: ${err}`);
-                await prisma.campaignLead.update({ where: { id: job.id }, data: { status: 'FAILED' } });
+                await prisma.campaignLead.update({
+                    where: { id: job.id },
+                    data: { status: 'FAILED', failureReason: String(err) }
+                });
                 await eventService.logEvent('EMAIL_FAILED', job.campaign.id, job.lead.id, { error: String(err) });
             }
         }
