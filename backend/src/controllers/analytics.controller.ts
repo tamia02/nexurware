@@ -1,8 +1,11 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { PrismaClient } from '@prisma/client';
+import Redis from 'ioredis';
+import { redisConfig } from '../config/redis';
 
 const prisma = new PrismaClient();
+const redis = new Redis(redisConfig as any); // Type assertion needed sometimes for ioRedis compat
 
 export class AnalyticsController {
 
@@ -70,6 +73,12 @@ export class AnalyticsController {
             const user = (req as AuthRequest).user;
             if (!user) return res.status(401).json({ error: 'Unauthorized' });
 
+            const cacheKey = `analytics:global:${user.userId}`; // Adjust based on AuthRequest user structure which is JwtPayload or similar
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                return res.json(JSON.parse(cached));
+            }
+
             const totalSent = await prisma.campaignLead.count({ where: { status: { not: 'NEW' } } });
             const totalReplied = await prisma.campaignLead.count({ where: { status: 'REPLIED' } });
 
@@ -82,7 +91,10 @@ export class AnalyticsController {
             const openRate = totalSent > 0 ? (totalOpened / totalSent) * 100 : 0;
             const replyRate = totalSent > 0 ? (totalReplied / totalSent) * 100 : 0;
 
-            res.json({ totalSent, totalOpened, totalReplied, openRate, replyRate });
+            const data = { totalSent, totalOpened, totalReplied, openRate, replyRate };
+            await redis.set(cacheKey, JSON.stringify(data), 'EX', 300); // 5 mins
+
+            res.json(data);
         } catch (error) {
             console.error('[Analytics] Error:', error);
             res.status(500).json({ error: String(error) });
@@ -93,6 +105,12 @@ export class AnalyticsController {
         try {
             const user = (req as AuthRequest).user;
             if (!user) return res.status(401).json({ error: 'Unauthorized' });
+
+            const cacheKey = `analytics:daily:${user.userId}`;
+            const cached = await redis.get(cacheKey);
+            if (cached) {
+                return res.json(JSON.parse(cached));
+            }
 
             const dailyStats = await prisma.$queryRaw`
                 SELECT 
@@ -112,6 +130,8 @@ export class AnalyticsController {
                 opened: Number(d.opened),
                 replied: Number(d.replied)
             }));
+
+            await redis.set(cacheKey, JSON.stringify(formatted), 'EX', 300); // 5 mins
 
             res.json(formatted);
         } catch (error) {

@@ -27,6 +27,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors());
 app.use(express.json());
 
+import { apiLimiter } from './middleware/rate-limit.middleware';
+app.use('/api/', apiLimiter);
+
 import { authenticate } from './middleware/auth.middleware';
 
 app.use('/api/auth', authRouter);

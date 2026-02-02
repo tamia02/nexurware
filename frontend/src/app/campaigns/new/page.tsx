@@ -34,7 +34,9 @@ export default function NewCampaignPage() {
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [sequences, setSequences] = useState<Step[]>([
-        { type: 'EMAIL', subject: '', body: '', order: 0 }
+        { type: 'EMAIL', subject: '', body: '', order: 0 },
+        { type: 'EMAIL', subject: '', body: '', order: 1, delayDays: 3 },
+        { type: 'EMAIL', subject: '', body: '', order: 2, delayDays: 7 }
     ]);
 
     // Load Data
@@ -210,46 +212,58 @@ export default function NewCampaignPage() {
                 {step === 3 && (
                     <div className="space-y-6">
                         <h2 className="text-xl font-bold">Sequence Steps</h2>
+                        <div className="bg-blue-50 p-4 rounded text-sm text-blue-800 mb-4">
+                            <strong>Tip:</strong> Use <code>{"{{firstName}}"}</code> for variables and <code>{"{{Hi|Hello}}"}</code> for variations.
+                        </div>
                         {sequences.map((seq, idx) => (
                             <div key={idx} className="border rounded-md p-4 bg-gray-50 relative">
-                                <span className="absolute top-2 right-2 text-xs text-gray-400">Step {idx + 1}</span>
-                                <div className="mb-2">
+                                <span className="absolute top-2 right-2 text-xs font-bold text-gray-500 bg-gray-200 px-2 py-1 rounded">
+                                    {idx === 0 ? "Initial Email" : `Follow-up ${idx}`}
+                                </span>
+                                <div className="mb-2 mt-4">
                                     <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">Subject</label>
                                     <input
                                         className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm"
                                         value={seq.subject}
                                         onChange={e => updateStep(idx, 'subject', e.target.value)}
-                                        placeholder="Hello {{firstName}}"
+                                        placeholder={idx === 0 ? "Quick question for {{firstName}}" : "Following up on my last email"}
                                     />
                                 </div>
                                 <div className="mb-2">
                                     <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">Body</label>
                                     <textarea
-                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-24"
+                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-32"
                                         value={seq.body}
                                         onChange={e => updateStep(idx, 'body', e.target.value)}
-                                        placeholder="Hi {{firstName}}, checking in..."
+                                        placeholder={idx === 0
+                                            ? "Hi {{firstName}},\n\nI was browsing {{company}} and noticed..."
+                                            : "Hi {{firstName}},\n\nJust floating this to the top of your inbox..."}
                                     />
                                 </div>
-                                <div className="flex items-center gap-4 mt-2">
-                                    <div className="flex items-center gap-2">
-                                        <Clock className="w-4 h-4 text-gray-400" />
-                                        <input
-                                            type="number"
-                                            className="w-16 rounded-md border-gray-300 py-1 px-2 text-sm"
-                                            value={seq.delayDays || 0}
-                                            onChange={e => updateStep(idx, 'delayDays', Number(e.target.value))}
-                                        />
-                                        <span className="text-sm text-gray-500">days delay</span>
+                                {idx > 0 && (
+                                    <div className="flex items-center gap-4 mt-2 bg-white p-2 rounded border">
+                                        <div className="flex items-center gap-2">
+                                            <Clock className="w-4 h-4 text-gray-400" />
+                                            <span className="text-sm text-gray-600">Wait</span>
+                                            <input
+                                                type="number"
+                                                className="w-16 rounded-md border-gray-300 py-1 px-2 text-sm"
+                                                value={seq.delayDays || 0}
+                                                onChange={e => updateStep(idx, 'delayDays', Number(e.target.value))}
+                                            />
+                                            <span className="text-sm text-gray-600">days after previous email</span>
+                                        </div>
                                     </div>
-                                    <Button variant="secondary" onClick={() => removeStep(idx)} className="text-red-600 hover:text-red-700 ml-auto text-xs">
-                                        <Trash className="w-3 h-3 mr-1" /> Remove
+                                )}
+                                <div className="mt-2 text-right">
+                                    <Button variant="secondary" onClick={() => removeStep(idx)} className="text-red-600 hover:text-red-700 text-xs">
+                                        <Trash className="w-3 h-3 mr-1" /> Remove Step
                                     </Button>
                                 </div>
                             </div>
                         ))}
                         <Button variant="secondary" onClick={addStep} className="w-full border-dashed">
-                            <Plus className="w-4 h-4 mr-2" /> Add Email Step
+                            <Plus className="w-4 h-4 mr-2" /> Add Next Step
                         </Button>
                     </div>
                 )}
