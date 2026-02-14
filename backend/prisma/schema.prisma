@@ -91,7 +91,7 @@ model Sequence {
   body       String?  
   delayDays  Int      @default(0)
   delayHours Int      @default(0)
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   
   condition  String   @default("ALWAYS") // ALWAYS, IF_NO_OPEN, IF_NO_REPLY, IF_CLICKED
   @@index([campaignId])
@@ -105,7 +105,7 @@ model CampaignLead {
   failureReason String?
   currentStep  Int      @default(0) 
   nextActionAt DateTime?            
-  campaign   Campaign @relation(fields: [campaignId], references: [id])
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   lead       Lead     @relation(fields: [leadId], references: [id])
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
@@ -149,7 +149,7 @@ model Event {
   sequenceId String?
   metadata   String?     
   createdAt  DateTime  @default(now())
-  campaign   Campaign? @relation(fields: [campaignId], references: [id])
+  campaign   Campaign? @relation(fields: [campaignId], references: [id], onDelete: Cascade)
   lead       Lead?     @relation(fields: [leadId], references: [id])
   @@index([campaignId])
 }

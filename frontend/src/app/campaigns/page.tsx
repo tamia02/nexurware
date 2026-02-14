@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { fetcher } from '@/lib/api';
-import { Button } from '@/components/Button';
-import { Plus, Play, Pause, MoreVertical, FileText } from 'lucide-react';
+import { Plus, Play, Pause, MoreVertical, FileText, Trash2 } from 'lucide-react';
+import { api, fetcher } from '@/lib/api';
 
 interface Campaign {
     id: string;
@@ -65,7 +64,20 @@ export default function CampaignsPage() {
                                                 </p>
                                             </div>
                                         </div>
-                                        <div className="flex items-center text-gray-400">
+                                        <div className="flex items-center text-gray-400 gap-2">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.preventDefault();
+                                                    if (!confirm("Delete this campaign? This cannot be undone.")) return;
+                                                    api.delete(`/campaigns/${campaign.id}`)
+                                                        .then(() => setCampaigns(prev => prev.filter(c => c.id !== campaign.id)))
+                                                        .catch(err => alert("Failed to delete"));
+                                                }}
+                                                className="p-2 hover:bg-red-50 hover:text-red-600 rounded-full transition-colors"
+                                                title="Delete Campaign"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
                                             <MoreVertical className="w-5 h-5" />
                                         </div>
                                     </div>

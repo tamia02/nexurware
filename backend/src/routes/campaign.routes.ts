@@ -10,7 +10,9 @@ router.get('/', controller.list.bind(controller));
 router.get('/:id', controller.get.bind(controller));
 router.patch('/:id/status', controller.updateStatus.bind(controller));
 router.get('/:id/analytics/steps', controller.getStepAnalytics.bind(controller));
+
 router.post('/:id/smart-resend', controller.resendNonOpeners.bind(controller));
+router.delete('/:id', controller.delete.bind(controller));
 
 // Sequence Steps
 router.post('/:id/steps', controller.addStep.bind(controller));

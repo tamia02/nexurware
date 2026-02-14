@@ -136,4 +136,13 @@ export class CampaignController {
             res.status(500).json({ error: String(error) });
         }
     }
+    async delete(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            await campaignService.deleteCampaign(id as string);
+            res.status(204).send();
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
 }

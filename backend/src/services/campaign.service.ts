@@ -191,4 +191,9 @@ export class CampaignService {
 
         return newCampaign;
     }
+    async deleteCampaign(id: string) {
+        return await prisma.campaign.delete({
+            where: { id }
+        });
+    }
 }
