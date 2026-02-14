@@ -122,4 +122,73 @@ export class CampaignService {
             orderBy: { nextActionAt: 'asc' }
         });
     }
+
+    async cloneForNonOpeners(campaignId: string) {
+        // 1. Get Original
+        const original = await prisma.campaign.findUnique({
+            where: { id: campaignId },
+            include: { sequences: true }
+        });
+        if (!original) throw new Error("Campaign not found");
+
+        // 2. Find Non-Openers
+        // Leads in this campaign who DO NOT have an EMAIL_OPENED event for this campaign
+        const nonOpeners = await prisma.campaignLead.findMany({
+            where: {
+                campaignId: campaignId,
+                lead: {
+                    events: {
+                        none: {
+                            type: 'EMAIL_OPENED',
+                            campaignId: campaignId
+                        }
+                    }
+                }
+            }
+        });
+
+        if (nonOpeners.length === 0) throw new Error("No non-openers found to resend to.");
+
+        // 3. Create New Campaign
+        const newCampaign = await prisma.campaign.create({
+            data: {
+                name: `Resend: ${original.name}`,
+                status: 'DRAFT',
+                workspaceId: original.workspaceId,
+                mailboxId: original.mailboxId,
+                dailyLimit: original.dailyLimit,
+                timezone: original.timezone
+            }
+        });
+
+        // 4. Clone Sequences
+        for (const seq of original.sequences) {
+            await prisma.sequence.create({
+                data: {
+                    campaignId: newCampaign.id,
+                    type: seq.type,
+                    order: seq.order,
+                    subject: seq.subject,
+                    body: seq.body,
+                    delayDays: seq.delayDays,
+                    delayHours: seq.delayHours,
+                    condition: seq.condition
+                }
+            });
+        }
+
+        // 5. Add Leads
+        // Bulk create might be better, but we need to init CampaignLead defaults
+        await prisma.campaignLead.createMany({
+            data: nonOpeners.map(cl => ({
+                campaignId: newCampaign.id,
+                leadId: cl.leadId,
+                status: 'NEW',
+                currentStep: 0,
+                nextActionAt: new Date()
+            }))
+        });
+
+        return newCampaign;
+    }
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { api } from '@/lib/api';
 import { Button } from '@/components/Button';
+import { analyzeCampaign } from '@/utils/qualityAnalyzer';
 import { Check, ChevronRight, ChevronLeft, Plus, Trash, Clock } from 'lucide-react';
 
 // Types
@@ -15,6 +16,7 @@ interface Step {
     body?: string;
     delayDays?: number;
     order: number;
+    condition?: string;
 }
 
 export default function NewCampaignPage() {
@@ -35,9 +37,21 @@ export default function NewCampaignPage() {
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [sequences, setSequences] = useState<Step[]>([
         { type: 'EMAIL', subject: '', body: '', order: 0 },
-        { type: 'EMAIL', subject: '', body: '', order: 1, delayDays: 3 },
         { type: 'EMAIL', subject: '', body: '', order: 2, delayDays: 7 }
     ]);
+
+    // Quality State
+    const [qualityResult, setQualityResult] = useState<any>({ score: 100, warnings: [], suggestions: [] });
+    // Import dynamically or define logic
+    // For simplicity, we'll use the imported function if available, or reproduce basic logic here if imports are tricky in this view tool context without seeing imports.
+    // But I will add the import at the top in next step.
+
+    useEffect(() => {
+        // Run analysis on change
+        // We will assume analyzeCampaign is imported
+        const result = analyzeCampaign(sequences);
+        setQualityResult(result);
+    }, [sequences]);
 
     // Load Data
     useEffect(() => {
@@ -241,8 +255,8 @@ export default function NewCampaignPage() {
                                     />
                                 </div>
                                 {idx > 0 && (
-                                    <div className="flex items-center gap-4 mt-2 bg-white p-2 rounded border">
-                                        <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-4 mt-2 bg-white p-2 rounded border">
+                                        <div className="flex items-center gap-2 border-r pr-4">
                                             <Clock className="w-4 h-4 text-gray-400" />
                                             <span className="text-sm text-gray-600">Wait</span>
                                             <input
@@ -251,7 +265,21 @@ export default function NewCampaignPage() {
                                                 value={seq.delayDays || 0}
                                                 onChange={e => updateStep(idx, 'delayDays', Number(e.target.value))}
                                             />
-                                            <span className="text-sm text-gray-600">days after previous email</span>
+                                            <span className="text-sm text-gray-600">days</span>
+                                        </div>
+
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold text-gray-700">Condition:</span>
+                                            <select
+                                                className="text-sm border-gray-300 rounded-md py-1 px-2"
+                                                value={seq.condition || 'IF_NO_REPLY'}
+                                                onChange={e => updateStep(idx, 'condition', e.target.value)}
+                                            >
+                                                <option value="ALWAYS">Always Send</option>
+                                                <option value="IF_NO_REPLY">If No Reply (Recommended)</option>
+                                                <option value="IF_NO_OPEN">If Not Opened</option>
+                                                <option value="IF_CLICKED">If Clicked Link</option>
+                                            </select>
                                         </div>
                                     </div>
                                 )}
@@ -277,6 +305,40 @@ export default function NewCampaignPage() {
                             <p><strong>Mailbox:</strong> {mailboxes.find(m => m.id === selectedMailbox)?.email || 'None'}</p>
                             <p><strong>Leads:</strong> {selectedLeads.length} leads selected</p>
                             <p><strong>Sequence:</strong> {sequences.length} steps</p>
+                        </div>
+
+                        {/* Quality Score */}
+                        <div className="border rounded-md p-4 bg-white shadow-sm mt-4">
+                            <h3 className="text-lg font-bold mb-2">Campaign Quality Score</h3>
+                            <div className="flex items-center gap-4 mb-4">
+                                <div className={`text-3xl font-bold ${qualityResult.score >= 80 ? 'text-green-600' :
+                                        qualityResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'
+                                    }`}>
+                                    {qualityResult.score}/100
+                                </div>
+                                <div className="text-sm text-gray-500">
+                                    {qualityResult.score >= 80 ? 'Excellent! Ready to launch.' :
+                                        qualityResult.score >= 50 ? 'Good, but could be better.' : 'Needs improvement before launching.'}
+                                </div>
+                            </div>
+
+                            {qualityResult.warnings.length > 0 && (
+                                <div className="mb-4">
+                                    <h4 className="text-sm font-bold text-red-600 mb-1">Warnings:</h4>
+                                    <ul className="list-disc list-inside text-sm text-red-700">
+                                        {qualityResult.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {qualityResult.suggestions.length > 0 && (
+                                <div>
+                                    <h4 className="text-sm font-bold text-blue-600 mb-1">Suggestions:</h4>
+                                    <ul className="list-disc list-inside text-sm text-blue-700">
+                                        {qualityResult.suggestions.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                    </ul>
+                                </div>
+                            )}
                         </div>
                     </div>
                 )}

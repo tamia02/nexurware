@@ -89,12 +89,25 @@ export default function InboxPage() {
                                         {msg.lead ? <User className="text-blue-500" /> : <Mail />}
                                         {msg.fromEmail}
                                     </span>
-                                    <span className="text-sm text-gray-400">
-                                        {new Date(msg.receivedAt).toLocaleString()}
-                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm text-gray-400">
+                                            {new Date(msg.receivedAt).toLocaleDateString()}
+                                        </span>
+                                    </div>
                                 </div>
-                                <h3 className="font-medium mb-1">{msg.subject}</h3>
-                                <p className="text-gray-600 truncate">{msg.snippet || msg.body?.substring(0, 100)}</p>
+                                <div className="flex justify-between items-center mb-1">
+                                    <h3 className="font-medium text-gray-900">{msg.subject}</h3>
+                                    {msg.lead?.classification && (
+                                        <span className={`px-2 py-0.5 rounded text-xs font-bold uppercase ${msg.lead.classification === 'POSITIVE' ? 'bg-green-100 text-green-800' :
+                                                msg.lead.classification === 'NEGATIVE' ? 'bg-red-100 text-red-800' :
+                                                    msg.lead.classification === 'OOO' ? 'bg-yellow-100 text-yellow-800' :
+                                                        'bg-gray-100 text-gray-600'
+                                            }`}>
+                                            {msg.lead.classification}
+                                        </span>
+                                    )}
+                                </div>
+                                <p className="text-gray-600 truncate text-sm">{msg.snippet || msg.body?.substring(0, 100)}</p>
                             </div>
                         ))}
                     </div>

@@ -5,6 +5,7 @@ import { useParams } from 'next/navigation';
 import { api } from '@/lib/api';
 import { ArrowLeft, Clock, Mail, MessageSquare, MousePointer2, Send } from 'lucide-react';
 import Link from 'next/link';
+import { StepFunnel } from '@/components/analytics/StepFunnel';
 
 // Types
 interface CampaignStats {
@@ -37,9 +38,8 @@ export default function CampaignDetailsPage() {
 
         let mounted = true;
         let interval: NodeJS.Timeout;
-        setLoading(true);
-
         const fetchData = (isInitial = false) => {
+            if (isInitial) setLoading(true);
             Promise.all([
                 api.get(`/campaigns/${id}`),
                 api.get(`/analytics/campaigns/${id}`),
@@ -95,7 +95,27 @@ export default function CampaignDetailsPage() {
                             {campaign.status}
                         </span>
                     </div>
-                    {/* Actions like Pause/Resume could go here */}
+
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!confirm("Create a new campaign targeting leads who haven't opened yet?")) return;
+                                try {
+                                    setLoading(true);
+                                    const res = await api.post(`/campaigns/${id}/smart-resend`);
+                                    alert("Campaign created!");
+                                    window.location.href = `/campaigns/${res.data.id}`;
+                                } catch (e) {
+                                    alert("Failed to create resend campaign: " + String(e));
+                                    setLoading(false);
+                                }
+                            }}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded text-sm font-medium flex items-center"
+                        >
+                            <Mail className="w-4 h-4 mr-2" />
+                            Resend to Non-Openers
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -136,6 +156,10 @@ export default function CampaignDetailsPage() {
             <div className="bg-white rounded-lg shadow p-6">
                 {activeTab === 'sequences' && (
                     <div className="space-y-8">
+                        {/* Funnel Visualization */}
+                        <StepFunnel campaignId={id} />
+                        <hr className="border-gray-200" />
+
                         {campaign.sequences.map((step, idx) => (
                             <div key={step.id} className="relative pl-8 border-l-2 border-gray-200 pb-8 last:pb-0 last:border-0">
                                 <div className="absolute -left-2 top-0 w-4 h-4 rounded-full bg-blue-500 ring-4 ring-white" />

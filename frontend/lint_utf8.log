@@ -1,0 +1,147 @@
+
+> frontend@0.1.0 lint
+> eslint
+
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\admin\page.tsx
+  10:50  error    Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     @typescript-eslint/no-explicit-any
+  11:12  warning  'loading' is assigned a value but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 @typescript-eslint/no-unused-vars
+  18:13  error    Error: Cannot access variable before it is declared
+
+`fetchWorkspaces` is accessed before it is declared, which prevents the earlier access from updating when this value changes over time.
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\admin\page.tsx:18:13
+  16 |         if (savedSecret) {
+  17 |             setSecret(savedSecret);
+> 18 |             fetchWorkspaces(savedSecret);
+     |             ^^^^^^^^^^^^^^^ `fetchWorkspaces` accessed before it is declared
+  19 |         }
+  20 |     }, []);
+  21 |
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\admin\page.tsx:22:5
+  20 |     }, []);
+  21 |
+> 22 |     const fetchWorkspaces = (token: string) => {
+     |     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 23 |         setLoading(true);
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 24 |         setError('');
+     …
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 36 |             .finally(() => setLoading(false));
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^
+> 37 |     };
+     | ^^^^^^^ `fetchWorkspaces` is declared here
+  38 |
+  39 |     const handleLogin = (e: React.FormEvent) => {
+  40 |         e.preventDefault();  react-hooks/immutability
+  53:20  warning  'err' is defined but never used                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              @typescript-eslint/no-unused-vars
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\analytics\page.tsx
+   5:10  warning  'BarChart' is defined but never used      @typescript-eslint/no-unused-vars
+   5:20  warning  'Bar' is defined but never used           @typescript-eslint/no-unused-vars
+  10:52  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  11:50  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\billing\page.tsx
+  18:12  warning  'upgrading' is assigned a value but never used     @typescript-eslint/no-unused-vars
+  18:23  warning  'setUpgrading' is assigned a value but never used  @typescript-eslint/no-unused-vars
+  20:11  warning  'success' is assigned a value but never used       @typescript-eslint/no-unused-vars
+  21:11  warning  'canceled' is assigned a value but never used      @typescript-eslint/no-unused-vars
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\campaigns\[id]\page.tsx
+  23:16  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  32:40  error  Unexpected any. Specify a different type                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               @typescript-eslint/no-explicit-any
+  41:9   error  Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\campaigns\[id]\page.tsx:41:9
+  39 |         let mounted = true;
+  40 |         let interval: NodeJS.Timeout;
+> 41 |         setLoading(true);
+     |         ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  42 |
+  43 |         const fetchData = (isInitial = false) => {
+  44 |             Promise.all([  react-hooks/set-state-in-effect
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\campaigns\new\page.tsx
+  44:56  error  Unexpected any. Specify a different type                                                                             @typescript-eslint/no-explicit-any
+  86:9   error  Use "@ts-expect-error" instead of "@ts-ignore", as "@ts-ignore" will do nothing if the following line is error-free  @typescript-eslint/ban-ts-comment
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\inbox\page.tsx
+  10:48  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  12:46  error    Unexpected any. Specify a different type                                                                          @typescript-eslint/no-explicit-any
+  27:8   warning  React Hook useEffect has a missing dependency: 'fetchMessages'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+  47:18  warning  'err' is defined but never used                                                                                   @typescript-eslint/no-unused-vars
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\leads\new\page.tsx
+  177:78  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  178:83  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\leads\page.tsx
+   40:8   warning  React Hook useEffect has a missing dependency: 'fetchLeads'. Either include it or remove the dependency array                                  react-hooks/exhaustive-deps
+   49:8   warning  React Hook useEffect has missing dependencies: 'fetchLeads', 'search', and 'statusFilter'. Either include them or remove the dependency array  react-hooks/exhaustive-deps
+  106:39  error    Unexpected any. Specify a different type                                                                                                       @typescript-eslint/no-explicit-any
+  129:31  error    Unexpected any. Specify a different type                                                                                                       @typescript-eslint/no-explicit-any
+  135:26  error    Unexpected any. Specify a different type                                                                                                       @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\login\page.tsx
+  24:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\onboarding\page.tsx
+  17:42  error    Unexpected any. Specify a different type                                                                        @typescript-eslint/no-explicit-any
+  22:8   warning  React Hook useEffect has a missing dependency: 'fetchStatus'. Either include it or remove the dependency array  react-hooks/exhaustive-deps
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\onboarding\steps\ConnectMailboxStep.tsx
+   6:29  warning  'Server' is defined but never used        @typescript-eslint/no-unused-vars
+  76:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\page.tsx
+  4:10  warning  'ArrowRight' is defined but never used    @typescript-eslint/no-unused-vars
+  4:22  warning  'CheckCircle2' is defined but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\register\page.tsx
+  37:23  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\app\settings\page.tsx
+    6:17  warning  'Server' is defined but never used        @typescript-eslint/no-unused-vars
+    6:25  warning  'CheckCircle' is defined but never used   @typescript-eslint/no-unused-vars
+    6:38  warning  'XCircle' is defined but never used       @typescript-eslint/no-unused-vars
+   69:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+   83:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  103:34  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+  120:23  error    Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\components\Shell.tsx
+  10:11  warning  'router' is assigned a value but never used  @typescript-eslint/no-unused-vars
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\context\AuthContext.tsx
+  58:13  error    Error: Calling setState synchronously within an effect can trigger cascading renders
+
+Effects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:
+* Update external systems with the latest state from React.
+* Subscribe for updates from some external system, calling setState in a callback function when external state changes.
+
+Calling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\context\AuthContext.tsx:58:13
+  56 |                 .finally(() => setLoading(false));
+  57 |         } else {
+> 58 |             setLoading(false);
+     |             ^^^^^^^^^^ Avoid calling setState() directly within an effect
+  59 |         }
+  60 |     }, []);
+  61 |  react-hooks/set-state-in-effect
+  60:8   warning  React Hook useEffect has a missing dependency: 'logout'. Either include it or remove the dependency array                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               react-hooks/exhaustive-deps
+
+C:\Users\tasmi\OneDrive\agentic workflow\notebookllm\frontend\src\utils\qualityAnalyzer.ts
+  12:40  error  Unexpected any. Specify a different type  @typescript-eslint/no-explicit-any
+
+✖ 47 problems (26 errors, 21 warnings)
+

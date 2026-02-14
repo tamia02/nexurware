@@ -22,7 +22,8 @@ export class EmailService {
         subject: string,
         html: string,
         replyTo?: string,
-        campaignLeadId?: string // Phase 4
+        campaignLeadId?: string, // Phase 4
+        sequenceId?: string
     ): Promise<{ messageId: string }> {
         const transporter = this.createTransporter(mailbox);
 
@@ -33,7 +34,7 @@ export class EmailService {
             const baseUrl = process.env.API_URL || 'http://localhost:3001';
 
             // 1. Inject Pixel
-            const pixelUrl = `${baseUrl}/tracking/open?id=${campaignLeadId}`;
+            const pixelUrl = `${baseUrl}/tracking/open?id=${campaignLeadId}&step=${sequenceId || ''}`;
             finalBody += `<img src="${pixelUrl}" alt="" width="1" height="1" style="display:none;" />`;
 
             // 2. Rewrite Links (Regex)
@@ -41,7 +42,7 @@ export class EmailService {
             finalBody = finalBody.replace(/href="(http[^"]+)"/g, (match, url) => {
                 // Avoid rewriting tracking links if already present
                 if (url.includes('/tracking/')) return match;
-                const trackUrl = `${baseUrl}/tracking/click?url=${encodeURIComponent(url)}&id=${campaignLeadId}`;
+                const trackUrl = `${baseUrl}/tracking/click?url=${encodeURIComponent(url)}&id=${campaignLeadId}&step=${sequenceId || ''}`;
                 return `href="${trackUrl}"`;
             });
         }

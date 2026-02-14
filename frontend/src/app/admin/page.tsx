@@ -11,14 +11,6 @@ export default function AdminPage() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    useEffect(() => {
-        const savedSecret = localStorage.getItem('admin_secret');
-        if (savedSecret) {
-            setSecret(savedSecret);
-            fetchWorkspaces(savedSecret);
-        }
-    }, []);
-
     const fetchWorkspaces = (token: string) => {
         setLoading(true);
         setError('');
@@ -35,6 +27,14 @@ export default function AdminPage() {
             })
             .finally(() => setLoading(false));
     };
+
+    useEffect(() => {
+        const savedSecret = localStorage.getItem('admin_secret');
+        if (savedSecret) {
+            setSecret(savedSecret);
+            fetchWorkspaces(savedSecret);
+        }
+    }, []);
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();

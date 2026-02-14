@@ -19,6 +19,7 @@ export class QueueService {
         senderEmail: string;
         senderName: string;
         campaignLeadId?: string;
+        sequenceId?: string;
     }, opts?: { delay?: number }) {
         return await emailQueue.add('send-email', data, {
             attempts: 3,

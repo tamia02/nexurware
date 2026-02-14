@@ -43,7 +43,7 @@ export class SchedulerService {
                             data: { status: 'REPLIED', nextActionAt: null }
                         });
                         await prisma.lead.update({ where: { id: lead.id }, data: { status: 'REPLIED' } });
-                        await eventService.logEvent('REPLY_RECEIVED', null, lead.id, { mailbox: mailbox.email });
+                        await eventService.logEvent('REPLY_RECEIVED', null, lead.id, null, { mailbox: mailbox.email });
                     }
                 }
             }
@@ -153,6 +153,68 @@ export class SchedulerService {
 
         const step = sequences[currentStepIndex];
 
+        // ---------------------------------------------------------
+        // Conditional Logic Check
+        // ---------------------------------------------------------
+        let conditionMet = true;
+        const condition = (step as any).condition || 'ALWAYS'; // Default to ALWAYS if not in DB yet
+
+        if (condition === 'IF_NO_OPEN') {
+            const hasOpened = await prisma.event.findFirst({
+                where: {
+                    leadId: job.lead.id,
+                    campaignId: job.campaign.id,
+                    type: 'OPEN'
+                }
+            });
+            if (hasOpened) conditionMet = false;
+        } else if (condition === 'IF_NO_REPLY') {
+            // Main query already filters 'REPLIED', but double check for safety or specific logic
+            if (job.lead.status === 'REPLIED' || job.status === 'REPLIED') conditionMet = false;
+        } else if (condition === 'IF_CLICKED') {
+            const hasClicked = await prisma.event.findFirst({
+                where: {
+                    leadId: job.lead.id,
+                    campaignId: job.campaign.id,
+                    type: 'CLICK'
+                }
+            });
+            if (!hasClicked) conditionMet = false;
+        }
+
+        if (!conditionMet) {
+            // SKIP THIS STEP
+            await eventService.logEvent('STEP_SKIPPED' as any, job.campaign.id, job.lead.id, null, {
+                stepIndex: currentStepIndex,
+                reason: `Condition ${condition} not met`
+            });
+
+            // Move to next step immediately
+            const nextStepIndex = currentStepIndex + 1;
+            let nextActionAt = null;
+
+            if (nextStepIndex < sequences.length) {
+                const nextStep = sequences[nextStepIndex];
+                const delayMs = (nextStep.delayDays * 24 * 3600 * 1000) + (nextStep.delayHours * 3600 * 1000);
+                nextActionAt = new Date(Date.now() + delayMs);
+            }
+
+            await prisma.campaignLead.update({
+                where: { id: job.id },
+                data: {
+                    currentStep: nextStepIndex,
+                    nextActionAt: nextActionAt,
+                    // If we skip the last step, is it 'COMPLETED'? 
+                    // For now, let's keep status as is (e.g. CONTACTED) unless it's the end.
+                    // If nextStepIndex >= sequences.length, the next poll will set it to IGNORED/COMPLETED?
+                    // The next poll checks `currentStep >= sequences.length` and sets IGNORED. 
+                    // So we just update index here.
+                }
+            });
+            return;
+        }
+        // ---------------------------------------------------------
+
         if (step.type === 'EMAIL') {
             const mailbox = job.campaign.mailbox;
             if (!mailbox) return;
@@ -173,7 +235,8 @@ export class SchedulerService {
                     emailBody: body,
                     subject: subject,
                     senderEmail: mailbox.email,
-                    senderName: mailbox.name || 'Nexusware User'
+                    senderName: mailbox.name || 'Nexusware User',
+                    sequenceId: step.id
                 }, { delay });
 
                 // Optimistic Update
@@ -200,7 +263,7 @@ export class SchedulerService {
                     data: { sentCount: { increment: 1 } }
                 });
 
-                await eventService.logEvent('EMAIL_QUEUED' as any, job.campaign.id, job.lead.id, {
+                await eventService.logEvent('EMAIL_QUEUED' as any, job.campaign.id, job.lead.id, step.id, {
                     subject,
                     jobId: jobId?.id
                 });
@@ -210,7 +273,7 @@ export class SchedulerService {
                     where: { id: job.id },
                     data: { status: 'FAILED', failureReason: String(err) }
                 });
-                await eventService.logEvent('EMAIL_FAILED', job.campaign.id, job.lead.id, { error: String(err) });
+                await eventService.logEvent('EMAIL_FAILED', job.campaign.id, job.lead.id, step.id, { error: String(err) });
             }
         }
     }

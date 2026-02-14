@@ -9,6 +9,7 @@ export class EventService {
         type: EventType,
         campaignId: string | null,
         leadId: string | null,
+        sequenceId: string | null = null,
         metadata: any = {}
     ) {
         return await prisma.event.create({
@@ -16,6 +17,7 @@ export class EventService {
                 type,
                 campaignId,
                 leadId,
+                sequenceId,
                 metadata: typeof metadata === 'string' ? metadata : JSON.stringify(metadata || {}),
             }
         });

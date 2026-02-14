@@ -1,6 +1,7 @@
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
 import { PrismaClient } from '@prisma/client';
+import { ClassifierService } from './classifier.service';
 
 const prisma = new PrismaClient();
 
@@ -114,6 +115,25 @@ export class ImapService {
                             // Use upsert to avoid duplicates
                             const lead = await prisma.lead.findFirst({ where: { email: fromEmail } });
 
+                            let classification = 'INFO';
+                            if (lead) {
+                                classification = ClassifierService.classifyReply(subject, body || '');
+
+                                // Update Lead Status based on Classification
+                                if (classification === 'POSITIVE' || classification === 'NEGATIVE' || classification === 'OOO') {
+                                    // Only update if not already handled? Or always update latest sentiment?
+                                    // Let's update classification field always.
+                                    // And status to REPLIED if not already.
+                                    await prisma.lead.update({
+                                        where: { id: lead.id },
+                                        data: {
+                                            classification: classification,
+                                            status: 'REPLIED'
+                                        }
+                                    });
+                                }
+                            }
+
                             try {
                                 await prisma.emailMessage.upsert({
                                     where: { mailboxId_remoteId: { mailboxId: mailbox.id, remoteId: String(uid || seqno) } },
@@ -139,8 +159,6 @@ export class ImapService {
                 });
 
                 fetch.once('end', () => {
-                    // Do NOT end connection here. Retrieve to pool.
-                    // imap.end();
                     resolve();
                 });
             });
@@ -151,4 +169,9 @@ export class ImapService {
     // For brevity, I'll include minimal stubs or they should remain if user calls them.
     // I will disable them for now or implement similarly.
 
-    async checkBounces(mailbox: any) { return []; } 
+    async checkReplies(mailbox: any): Promise<string[]> {
+        return [];
+    }
+
+    async checkBounces(mailbox: any) { return []; }
+} 

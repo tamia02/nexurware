@@ -42,6 +42,7 @@ export class TrackingController {
                             type: 'EMAIL_OPENED',
                             campaignId: cl.campaignId,
                             leadId: cl.leadId,
+                            sequenceId: (req.query.step as string) || null,
                             metadata: JSON.stringify({ ip: req.ip, ua: req.get('User-Agent') })
                         }
                     });
@@ -80,6 +81,7 @@ export class TrackingController {
                             type: 'LINK_CLICKED',
                             campaignId: cl.campaignId,
                             leadId: cl.leadId,
+                            sequenceId: (req.query.step as string) || null,
                             metadata: JSON.stringify({ url, ip: req.ip, ua: req.get('User-Agent') })
                         }
                     });

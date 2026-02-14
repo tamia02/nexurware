@@ -48,6 +48,7 @@ model Lead {
   timezone  String? 
   metadata  String?
   status    String   @default("NEW")
+  classification String? // POSITIVE, NEGATIVE, OOO, OBJECTION, INFO
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   
@@ -91,6 +92,8 @@ model Sequence {
   delayDays  Int      @default(0)
   delayHours Int      @default(0)
   campaign   Campaign @relation(fields: [campaignId], references: [id])
+  
+  condition  String   @default("ALWAYS") // ALWAYS, IF_NO_OPEN, IF_NO_REPLY, IF_CLICKED
   @@index([campaignId])
 }
 

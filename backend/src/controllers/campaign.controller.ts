@@ -1,6 +1,9 @@
 import { Request, Response } from 'express';
 import { AuthRequest } from '../middleware/auth.middleware';
 import { CampaignService } from '../services/campaign.service';
+import { PrismaClient } from '@prisma/client';
+
+const prisma = new PrismaClient();
 
 const campaignService = new CampaignService();
 
@@ -81,6 +84,54 @@ export class CampaignController {
             const { id } = req.params;
             const leads = await campaignService.getCampaignLeads(id as string);
             res.json(leads);
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
+    async getStepAnalytics(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            // 1. Get Campaign Sequences
+            const campaign = await prisma.campaign.findUnique({
+                where: { id: id as string },
+                include: { sequences: { orderBy: { order: 'asc' } } }
+            });
+
+            if (!campaign) return res.status(404).json({ error: 'Campaign not found' });
+
+            // 2. Aggregate Events
+            // We want stats per Sequence Step
+            const steps = campaign.sequences.map(async (seq) => {
+                const [sent, opened, clicked, replied] = await Promise.all([
+                    prisma.event.count({ where: { campaignId: id as string, sequenceId: seq.id, type: 'EMAIL_QUEUED' } }), // or EMAIL_SENT
+                    prisma.event.count({ where: { campaignId: id as string, sequenceId: seq.id, type: 'EMAIL_OPENED' } }),
+                    prisma.event.count({ where: { campaignId: id as string, sequenceId: seq.id, type: 'LINK_CLICKED' } }),
+                    prisma.event.count({ where: { campaignId: id as string, sequenceId: seq.id, type: 'REPLY_RECEIVED' } })
+                ]);
+                return {
+                    id: seq.id,
+                    order: seq.order,
+                    subject: seq.subject,
+                    sent,
+                    opened,
+                    clicked,
+                    replied,
+                    openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
+                    replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+                };
+            });
+
+            const results = await Promise.all(steps);
+            res.json(results);
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
+    async resendNonOpeners(req: Request, res: Response) {
+        try {
+            const { id } = req.params;
+            const newCampaign = await campaignService.cloneForNonOpeners(id as string);
+            res.status(201).json(newCampaign);
         } catch (error) {
             res.status(500).json({ error: String(error) });
         }
