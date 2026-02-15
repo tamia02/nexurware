@@ -8,6 +8,7 @@ import { QueueService } from './queue.service';
 import { WarmupService } from './warmup.service'; // Phase 3
 import { formatInTimeZone } from 'date-fns-tz'; // Phase 2: Timezones
 import { CampaignStatus } from '../enums';
+import { redisClient } from './redis.service';
 
 const prisma = new PrismaClient();
 const emailService = new EmailService();
@@ -124,17 +125,55 @@ export class SchedulerService {
             jobsByMailbox[mailboxId].push(job);
         }
 
-        // Process each mailbox's batch with staggered delays
+        // Process each mailbox's batch with SERIALIZED variable delays from Redis
         for (const mailboxId in jobsByMailbox) {
             const mailboxJobs = jobsByMailbox[mailboxId];
             if (mailboxJobs.length === 0) continue;
 
-            for (let i = 0; i < mailboxJobs.length; i++) {
-                const baseDelay = 45000; // 45 seconds
-                const jitter = Math.floor(Math.random() * 10000); // 0-10s jitter
-                const stagger = i * (baseDelay + jitter);
+            const redisKey = `mailbox:${mailboxId}:next_send_at`;
+            let nextSendAtTs = Date.now();
 
-                await this.processJob(mailboxJobs[i], stagger);
+            try {
+                const storedTs = await redisClient.get(redisKey);
+                if (storedTs) {
+                    nextSendAtTs = parseInt(storedTs);
+                    // If stored time is in the past, reset to now to avoid huge burst catches up
+                    if (nextSendAtTs < Date.now()) {
+                        nextSendAtTs = Date.now();
+                    }
+                }
+            } catch (error) {
+                console.error(`[Scheduler] Redis Get Error: ${error}`);
+                // Fallback to now if redis fails
+            }
+
+            for (const job of mailboxJobs) {
+                // Variable Delay: 2 to 5 minutes (user request)
+                // 2 mins = 120,000 ms
+                // 5 mins = 300,000 ms
+                // Range = 300,000 - 120,000 = 180,000 ms
+                const minDelay = 2 * 60 * 1000;
+                const variance = 3 * 60 * 1000;
+                const variableDelay = Math.floor(Math.random() * variance) + minDelay;
+
+                // Schedule at the next available slot
+                const scheduledTime = nextSendAtTs + variableDelay;
+
+                // Calculate delay relative to NOW for the queue
+                const queueDelay = Math.max(0, scheduledTime - Date.now());
+
+                await this.processJob(job, queueDelay);
+
+                // Update next slot
+                nextSendAtTs = scheduledTime;
+            }
+
+            // Save the new nextSendAt to Redis
+            try {
+                // Set TTL to 24 hours just to keep it clean if mailbox goes inactive
+                await redisClient.set(redisKey, nextSendAtTs.toString(), 'EX', 86400);
+            } catch (error) {
+                console.error(`[Scheduler] Redis Set Error: ${error}`);
             }
         }
     }
