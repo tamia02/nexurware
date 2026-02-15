@@ -38,11 +38,29 @@ const worker = new Worker('email-sending-queue', async (job) => {
         if (!lead) throw new Error(`Lead ${leadId} not found`);
 
         // 3. Send
+        let finalBody = emailBody;
+
+        // Check for Custom Message in Lead Metadata
+        if (lead.metadata) {
+            try {
+                const metadata = typeof lead.metadata === 'string'
+                    ? JSON.parse(lead.metadata)
+                    : lead.metadata;
+
+                if (metadata.customMessage) {
+                    console.log(`[Worker] Using Custom Message for lead ${lead.email}`);
+                    finalBody = metadata.customMessage;
+                }
+            } catch (e) {
+                console.warn(`[Worker] Failed to parse metadata for lead ${lead.id}`, e);
+            }
+        }
+
         await emailService.sendEmail(
             mailbox,
             lead.email,
             subject,
-            emailBody,
+            finalBody,
             undefined,
             campaignLeadId,
             sequenceId

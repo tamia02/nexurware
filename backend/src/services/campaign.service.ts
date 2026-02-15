@@ -192,6 +192,11 @@ export class CampaignService {
         return newCampaign;
     }
     async deleteCampaign(id: string) {
+        // Manually delete related records to ensure it works regardless of DB constraint state
+        await prisma.event.deleteMany({ where: { campaignId: id } });
+        await prisma.campaignLead.deleteMany({ where: { campaignId: id } });
+        await prisma.sequence.deleteMany({ where: { campaignId: id } });
+
         return await prisma.campaign.delete({
             where: { id }
         });

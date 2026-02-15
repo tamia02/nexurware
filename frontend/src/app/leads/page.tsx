@@ -30,6 +30,7 @@ export default function LeadsPage() {
     const [importText, setImportText] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importing, setImporting] = useState(false);
+    const [isPersonalized, setIsPersonalized] = useState(false);
 
     // Debounce search
     useEffect(() => {
@@ -104,11 +105,26 @@ export default function LeadsPage() {
             header: true,
             skipEmptyLines: true,
             complete: async (results: any) => {
-                const parsedLeads = results.data;
+                let parsedLeads = results.data;
                 if (parsedLeads.length === 0) {
                     alert("No valid rows found in CSV.");
                     setImporting(false);
                     return;
+                }
+
+                // Map custom message if personalized
+                if (isPersonalized) {
+                    parsedLeads = parsedLeads.map((lead: any) => {
+                        // Support 'customMessage' or 'message' or 'body'
+                        const msg = lead.customMessage || lead.message || lead.body;
+                        if (msg) {
+                            return {
+                                ...lead,
+                                metadata: { ...lead.metadata, customMessage: msg }
+                            };
+                        }
+                        return lead;
+                    });
                 }
 
                 try {
@@ -210,8 +226,28 @@ export default function LeadsPage() {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
+                        <div className="flex justify-center mb-4">
+                            <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                                <button
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${!isPersonalized ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                                    onClick={() => setIsPersonalized(false)}
+                                >
+                                    Standard
+                                </button>
+                                <button
+                                    className={`px-4 py-2 rounded-md text-sm font-medium transition ${isPersonalized ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                                    onClick={() => setIsPersonalized(true)}
+                                >
+                                    Personalized
+                                </button>
+                            </div>
+                        </div>
+
                         <p className="text-sm text-gray-500 mb-2">
-                            Upload a CSV file OR paste text below. Headers must be: <code>email, firstName, lastName, company</code>
+                            {isPersonalized
+                                ? <span>Upload a CSV with headers: <code>email, firstName, lastName, company, customMessage</code></span>
+                                : <span>Upload a CSV with headers: <code>email, firstName, lastName, company</code></span>
+                            }
                         </p>
 
                         <div className="mb-4">
@@ -241,7 +277,10 @@ export default function LeadsPage() {
 
                         <textarea
                             className="w-full h-32 border rounded-md p-2 font-mono text-sm"
-                            placeholder={"email,firstName,lastName,company\njohn@example.com,John,Doe,Acme Inc"}
+                            placeholder={isPersonalized
+                                ? "email,firstName,customMessage\njohn@example.com,John,Hello John..."
+                                : "email,firstName,lastName,company\njohn@example.com,John,Doe,Acme Inc"
+                            }
                             value={importText}
                             onChange={(e) => {
                                 setImportText(e.target.value);

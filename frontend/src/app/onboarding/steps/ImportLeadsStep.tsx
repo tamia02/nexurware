@@ -9,6 +9,7 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
     const [leadText, setLeadText] = useState('john@example.com, John Doe\njane@company.com, Jane Smith');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(defaultCompleted || false);
+    const [isPersonalized, setIsPersonalized] = useState(false);
 
     if (success) {
         return (
@@ -26,11 +27,18 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
             // Parse simplistic CSV (Email, Name)
             const lines = leadText.split('\n');
             const leads = lines.map(line => {
-                const [email, name] = line.split(',');
-                if (!email) return null;
+                // If personalized: email, name, message
+                const parts = line.split(',');
+                const email = parts[0]?.trim();
+                const name = parts[1]?.trim();
+                const message = isPersonalized ? parts.slice(2).join(',').trim() : undefined;
+
+                if (!email || !email.includes('@')) return null;
+
                 return {
-                    email: email.trim(),
-                    firstName: name ? name.trim() : undefined
+                    email,
+                    firstName: name,
+                    metadata: message ? { customMessage: message } : undefined
                 };
             }).filter(Boolean);
 
@@ -48,18 +56,43 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
 
     return (
         <div className="space-y-6">
+            <div className="flex justify-center mb-4">
+                <div className="bg-gray-100 p-1 rounded-lg inline-flex">
+                    <button
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${!isPersonalized ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                        onClick={() => setIsPersonalized(false)}
+                    >
+                        Standard
+                    </button>
+                    <button
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition ${isPersonalized ? 'bg-white shadow text-gray-900' : 'text-gray-500'}`}
+                        onClick={() => setIsPersonalized(true)}
+                    >
+                        Personalized
+                    </button>
+                </div>
+            </div>
+
             <div className="text-center">
                 <Users className="w-12 h-12 mx-auto text-gray-400 mb-2" />
                 <h3 className="text-lg font-medium">Add your first leads</h3>
-                <p className="text-sm text-gray-500 mb-2">Paste your leads below (Email, Name)</p>
+                <p className="text-sm text-gray-500 mb-2">
+                    {isPersonalized
+                        ? "Paste your leads below (Email, Name, Message)"
+                        : "Paste your leads below (Email, Name)"
+                    }
+                </p>
                 <button
                     onClick={() => {
-                        const csvContent = "email,firstName\njohn@example.com,John Doe\njane@test.com,Jane";
+                        const csvContent = isPersonalized
+                            ? "email,firstName,customMessage\njohn@example.com,John,Hello John I noticed...\njane@test.com,Jane,Hi Jane saw your profile..."
+                            : "email,firstName\njohn@example.com,John Doe\njane@test.com,Jane";
+
                         const blob = new Blob([csvContent], { type: 'text/csv' });
                         const url = window.URL.createObjectURL(blob);
                         const a = document.createElement('a');
                         a.href = url;
-                        a.download = 'leads_sample.csv';
+                        a.download = isPersonalized ? 'leads_personalized_sample.csv' : 'leads_sample.csv';
                         a.click();
                     }}
                     className="text-xs text-blue-600 hover:underline"
@@ -73,7 +106,7 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
                     className="w-full h-32 border border-gray-300 rounded-md p-2 font-mono text-sm"
                     value={leadText}
                     onChange={e => setLeadText(e.target.value)}
-                    placeholder="email@example.com, Name"
+                    placeholder={isPersonalized ? "email@example.com, Name, Your custom message here" : "email@example.com, Name"}
                 />
             </div>
 

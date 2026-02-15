@@ -206,7 +206,7 @@ export default function CampaignDetailsPage() {
                                                 {job.status}
                                             </span>
                                             {job.status === 'FAILED' && job.failureReason && (
-                                                <div className="text-xs text-red-600 mt-1 max-w-[200px] truncate" title={job.failureReason}>
+                                                <div className="text-xs text-red-600 mt-1 max-w-[200px] break-words" title={job.failureReason}>
                                                     {job.failureReason}
                                                 </div>
                                             )}
