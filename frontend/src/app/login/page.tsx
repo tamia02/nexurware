@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { api } from '@/lib/api';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/Button';
-import { Mail, Users, Send, BarChart2, CheckCircle2 } from 'lucide-react';
+import { Mail, Users, Send, BarChart2 } from 'lucide-react';
 
 export default function LoginPage() {
     const { login } = useAuth();
