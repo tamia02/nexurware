@@ -28,10 +28,10 @@ export default function LoginPage() {
     };
 
     const steps = [
-        { icon: Mail, title: "Connect Mailbox", desc: "Link your email accounts via SMTP/IMAP." },
-        { icon: Users, title: "Import Leads", desc: "Upload CSVs to build your targeted audience." },
-        { icon: Send, title: "Create Campaign", desc: "Set up sequences with smart follow-ups." },
-        { icon: BarChart2, title: "Launch & Track", desc: "Monitor opens, clicks, and replies in real-time." }
+        { icon: Mail, title: "1. Connect Your Inbox", desc: "Go to Settings > Inboxes to connect your Google or Outlook accounts via SMTP/IMAP for sending." },
+        { icon: Users, title: "2. Find or Import Leads", desc: "Use our 'Lead Search' to find prospects or upload your own CSV list in the 'Leads' tab." },
+        { icon: Send, title: "3. Create & Launch Campaign", desc: "Draft your personalized email sequences, schedule them, and launch your outreach campaign." },
+        { icon: BarChart2, title: "4. Track Performance", desc: "Monitor your open rates, reply rates, and positive sentiment in the real-time Dashboard." }
     ];
 
     return (
