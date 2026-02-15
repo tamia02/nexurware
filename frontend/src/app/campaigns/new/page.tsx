@@ -14,6 +14,7 @@ interface Step {
     type: 'EMAIL' | 'DELAY';
     subject?: string;
     body?: string;
+    previewText?: string;
     delayDays?: number;
     order: number;
     condition?: string;
@@ -36,19 +37,15 @@ export default function NewCampaignPage() {
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [sequences, setSequences] = useState<Step[]>([
-        { type: 'EMAIL', subject: '', body: '', order: 0 },
-        { type: 'EMAIL', subject: '', body: '', order: 2, delayDays: 7 }
+        { type: 'EMAIL', subject: '', body: '', previewText: '', order: 0 },
+        { type: 'EMAIL', subject: '', body: '', previewText: '', order: 2, delayDays: 7 }
     ]);
 
     // Quality State
     const [qualityResult, setQualityResult] = useState<any>({ score: 100, warnings: [], suggestions: [] });
-    // Import dynamically or define logic
-    // For simplicity, we'll use the imported function if available, or reproduce basic logic here if imports are tricky in this view tool context without seeing imports.
-    // But I will add the import at the top in next step.
 
     useEffect(() => {
         // Run analysis on change
-        // We will assume analyzeCampaign is imported
         const result = analyzeCampaign(sequences);
         setQualityResult(result);
     }, [sequences]);
@@ -78,7 +75,7 @@ export default function NewCampaignPage() {
     };
 
     const addStep = () => {
-        setSequences([...sequences, { type: 'EMAIL', subject: '', body: '', order: sequences.length }]);
+        setSequences([...sequences, { type: 'EMAIL', subject: '', body: '', previewText: '', order: sequences.length }]);
     };
 
     const updateStep = (index: number, field: string, value: string | number) => {
@@ -114,9 +111,6 @@ export default function NewCampaignPage() {
             }
 
             // 3. Add Leads
-            // Note: Ideally this should be a bulk endpoint. For MVP we loop or use bulk if available.
-            // Let's loop for safety as bulk endpoint might not be perfectly tested for campaign join.
-            // Actually, we can use the loop in backend logic controller if we pass array, but let's do this:
             for (const leadId of selectedLeads) {
                 await api.post(`/campaigns/${campaignId}/leads`, { leadId });
             }
@@ -225,35 +219,83 @@ export default function NewCampaignPage() {
                 {/* STEP 3: SEQUENCES */}
                 {step === 3 && (
                     <div className="space-y-6">
-                        <h2 className="text-xl font-bold">Sequence Steps</h2>
-                        <div className="bg-blue-50 p-4 rounded text-sm text-blue-800 mb-4">
-                            <strong>Tip:</strong> Use <code>{"{{firstName}}"}</code> for variables and <code>{"{{Hi|Hello}}"}</code> for variations.
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold">Sequence Steps</h2>
+                            <div className={`text-sm font-bold ${qualityResult.score >= 80 ? 'text-green-600' : qualityResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                Quality Score: {qualityResult.score}/100
+                            </div>
                         </div>
+
+                        {/* Quality Feedback Inline */}
+                        {qualityResult.suggestions.length > 0 && (
+                            <div className="bg-blue-50 p-3 rounded-md border border-blue-100 mb-2">
+                                <p className="text-xs font-bold text-blue-800 mb-1">💡 Optimization Tips:</p>
+                                <ul className="list-disc list-inside text-xs text-blue-700">
+                                    {qualityResult.suggestions.map((s: string, i: number) => <li key={i}>{s}</li>)}
+                                </ul>
+                            </div>
+                        )}
+                        {qualityResult.warnings.length > 0 && (
+                            <div className="bg-red-50 p-3 rounded-md border border-red-100 mb-4">
+                                <p className="text-xs font-bold text-red-800 mb-1">⚠️ Critical Issues:</p>
+                                <ul className="list-disc list-inside text-xs text-red-700">
+                                    {qualityResult.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                                </ul>
+                            </div>
+                        )}
+
+                        <div className="bg-gray-100 p-2 rounded text-xs text-gray-600 mb-4 flex justify-between">
+                            <span><strong>Variables:</strong> <code>{"{{firstName}}"}</code>, <code>{"{{company}}"}</code></span>
+                            <span><strong>Spintax:</strong> <code>{"{{Hi|Hello}}"}</code></span>
+                        </div>
+
                         {sequences.map((seq, idx) => (
                             <div key={idx} className="border rounded-md p-4 bg-gray-50 relative">
                                 <span className="absolute top-2 right-2 text-xs font-bold text-gray-500 bg-gray-200 px-2 py-1 rounded">
                                     {idx === 0 ? "Initial Email" : `Follow-up ${idx}`}
                                 </span>
-                                <div className="mb-2 mt-4">
+
+                                <div className="mb-3 mt-4">
                                     <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">Subject</label>
                                     <input
-                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm"
+                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                         value={seq.subject}
                                         onChange={e => updateStep(idx, 'subject', e.target.value)}
                                         placeholder={idx === 0 ? "Quick question for {{firstName}}" : "Following up on my last email"}
                                     />
                                 </div>
+
+                                <div className="mb-3">
+                                    <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">
+                                        Preview Text <span className="text-gray-400 font-normal ml-1">(Crucial for open rates)</span>
+                                    </label>
+                                    <input
+                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
+                                        value={seq.previewText || ''}
+                                        onChange={e => updateStep(idx, 'previewText', e.target.value)}
+                                        placeholder="e.g. Most teams miss this opportunity..."
+                                    />
+                                </div>
+
                                 <div className="mb-2">
-                                    <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">Body</label>
+                                    <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1 flex justify-between">
+                                        <span>Body</span>
+                                        <span className={`text-xs ${(seq.body?.split(/\s+/).length || 0) > 200 ? 'text-red-500 font-bold' : 'text-gray-400'
+                                            }`}>
+                                            Word Count: {seq.body?.trim() ? seq.body.trim().split(/\s+/).length : 0}
+                                        </span>
+                                    </label>
                                     <textarea
-                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-32"
+                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-32 font-mono text-sm focus:ring-blue-500 focus:border-blue-500"
                                         value={seq.body}
                                         onChange={e => updateStep(idx, 'body', e.target.value)}
                                         placeholder={idx === 0
-                                            ? "Hi {{firstName}},\n\nI was browsing {{company}} and noticed..."
+                                            ? "Hi {{firstName}},\n\n[Hook: 1-2 lines]\n\n[Main Idea: Single concept]\n\n[CTA: Clear ask]\n\nP.S. [Reward Loop]"
                                             : "Hi {{firstName}},\n\nJust floating this to the top of your inbox..."}
                                     />
+                                    <p className="text-xs text-gray-400 mt-1 text-right">Plain text mode enabled for better deliverability.</p>
                                 </div>
+
                                 {idx > 0 && (
                                     <div className="flex flex-wrap items-center gap-4 mt-2 bg-white p-2 rounded border">
                                         <div className="flex items-center gap-2 border-r pr-4">
@@ -307,12 +349,12 @@ export default function NewCampaignPage() {
                             <p><strong>Sequence:</strong> {sequences.length} steps</p>
                         </div>
 
-                        {/* Quality Score */}
+                        {/* Quality Score Final Review */}
                         <div className="border rounded-md p-4 bg-white shadow-sm mt-4">
                             <h3 className="text-lg font-bold mb-2">Campaign Quality Score</h3>
                             <div className="flex items-center gap-4 mb-4">
                                 <div className={`text-3xl font-bold ${qualityResult.score >= 80 ? 'text-green-600' :
-                                        qualityResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'
+                                    qualityResult.score >= 50 ? 'text-yellow-600' : 'text-red-600'
                                     }`}>
                                     {qualityResult.score}/100
                                 </div>
@@ -343,6 +385,7 @@ export default function NewCampaignPage() {
                     </div>
                 )}
             </div>
+
 
             {/* Navigation */}
             <div className="flex justify-between mt-8">

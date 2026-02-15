@@ -1,72 +1,83 @@
+
 export interface QualityResult {
     score: number;
     warnings: string[];
     suggestions: string[];
 }
 
-const SPAM_TRIGGERS = [
-    'free', 'guarantee', 'winner', 'risk-free', 'special promotion', 'act now',
-    'apply now', 'exclusive deal', 'limited time', '100% free', '$$$', 'buy now'
-];
+// Removed import to avoid circular dependency
+export interface Step {
+    type: 'EMAIL' | 'DELAY';
+    subject?: string;
+    body?: string;
+    previewText?: string;
+}
 
-export const analyzeCampaign = (steps: any[]): QualityResult => {
+export function analyzeCampaign(sequences: Step[]): QualityResult {
     let score = 100;
     const warnings: string[] = [];
     const suggestions: string[] = [];
 
-    if (steps.length === 0) return { score: 0, warnings: [], suggestions: [] };
+    if (sequences.length === 0) {
+        return { score: 0, warnings: ["Add at least one email step."], suggestions: [] };
+    }
 
-    // 1. Analyze Subject Lines
-    steps.forEach((step, idx) => {
-        if (step.type !== 'EMAIL') return;
+    sequences.forEach((step, index) => {
+        if (step.type === 'EMAIL') {
+            const subject = step.subject || '';
+            const body = step.body || '';
+            const previewText = step.previewText || '';
+            const wordCount = body.trim().split(/\s+/).length;
+            const linkCount = (body.match(/http/g) || []).length;
 
-        const subject = step.subject || '';
-        const body = step.body || '';
-
-        // Check Subject Length
-        if (subject.length > 60) {
-            score -= 5;
-            warnings.push(`Step ${idx + 1}: Subject line is too long (>60 chars). Short subjects get better open rates.`);
-        }
-        if (subject === subject.toUpperCase() && subject.length > 0) {
-            score -= 10;
-            warnings.push(`Step ${idx + 1}: Subject line is ALL CAPS. This triggers spam filters.`);
-        }
-
-        // Check Spam Words
-        SPAM_TRIGGERS.forEach(word => {
-            if (subject.toLowerCase().includes(word)) {
+            // 1. Subject Length
+            if (subject.length > 60) {
                 score -= 5;
-                warnings.push(`Step ${idx + 1}: Subject contains spam trigger word "${word}".`);
+                warnings.push(`Step ${index + 1}: Subject line is too long (${subject.length} chars). Keep it under 50-60 chars.`);
+            } else if (subject.length < 10 && subject.length > 0) {
+                suggestions.push(`Step ${index + 1}: Subject line might be too short to be descriptive.`);
             }
-            if (body.toLowerCase().includes(word)) {
-                score -= 2; // Less penalty for body
-                warnings.push(`Step ${idx + 1}: Body contains spam trigger word "${word}".`);
+
+            // 2. Preview Text
+            if (!previewText) {
+                score -= 10;
+                warnings.push(`Step ${index + 1}: Missing preview text. This is crucial for open rates.`);
             }
-        });
 
-        // Check Links
-        const linkCount = (body.match(/http/g) || []).length;
-        if (linkCount > 2) {
-            score -= 5;
-            warnings.push(`Step ${idx + 1}: Too many links (${linkCount}). Keep it under 2 to avoid spam folders.`);
-        }
+            // 3. Word Count (Single Idea Rule)
+            if (wordCount > 200) {
+                score -= 10;
+                warnings.push(`Step ${index + 1}: Email is too long (${wordCount} words). Aim for under 150 words to focus on a single idea.`);
+            } else if (wordCount > 150) {
+                suggestions.push(`Step ${index + 1}: Consider shortening your email to under 150 words.`);
+            }
 
-        // Check Personalization
-        if (!body.includes('{{') && !subject.includes('{{')) {
-            suggestions.push(`Step ${idx + 1}: Consider adding personalization tags like {{firstName}} to increase engagement.`);
+            // 4. Link Count
+            if (linkCount > 2) {
+                score -= 5;
+                warnings.push(`Step ${index + 1}: Too many links (${linkCount}). Use max 1-2 calls to action.`);
+            }
+
+            // 5. Spam Words (Basic Check)
+            const spamWords = ['buy now', 'free', 'guarantee', 'urgent', 'winner', 'million dollars'];
+            spamWords.forEach(word => {
+                if (body.toLowerCase().includes(word) || subject.toLowerCase().includes(word)) {
+                    score -= 5;
+                    warnings.push(`Step ${index + 1}: Contains potential spam trigger word: "${word}".`);
+                }
+            });
+
+            // 6. PS Check
+            if (!body.toLowerCase().includes("ps:") && !body.toLowerCase().includes("p.s.")) {
+                suggestions.push(`Step ${index + 1}: Consider adding a P.S. line. It's often the second most read part of an email.`);
+            }
+
         }
     });
-
-    // 2. Sequence Structure
-    if (steps.filter(s => s.type === 'EMAIL').length < 2) {
-        score -= 10;
-        suggestions.push("Campaigns with at least 1 follow-up usually double the reply rate.");
-    }
 
     return {
         score: Math.max(0, score),
         warnings,
         suggestions
     };
-};
+}
