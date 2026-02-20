@@ -68,6 +68,8 @@ model Campaign {
   startTime  String?  
   endTime    String?  
   timezone   String?  
+  scheduledAt DateTime? @default(now())
+  pacingInterval Int @default(5) // Minutes between batches (or single emails if batch=1)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   

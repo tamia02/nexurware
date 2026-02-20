@@ -61,12 +61,19 @@ export class SchedulerService {
         // Phase 3: Warmup
         await warmupService.processWarmup();
 
+        // Phase 4: Completion Check
+        await this.checkCampaignCompletion();
+
         const now = new Date();
         const jobs = await prisma.campaignLead.findMany({
             where: {
                 status: { in: ['NEW', 'CONTACTED'] },
                 nextActionAt: { lte: now },
-                campaign: { status: CampaignStatus.ACTIVE as string }
+                campaign: {
+                    status: CampaignStatus.ACTIVE as string,
+                    // Respect Scheduled Start Time
+                    scheduledAt: { lte: now }
+                }
             },
             include: {
                 campaign: { include: { sequences: true, mailbox: true } },
@@ -79,7 +86,7 @@ export class SchedulerService {
         const jobsByMailbox: Record<string, typeof jobs> = {};
         const skippedJobIds: string[] = [];
 
-        // Check Windows (Phase 2)
+        // Check Windows (Phase 2) - Optional now
         const validJobs = [];
         for (const job of jobs) {
             const campaign = job.campaign;
@@ -90,20 +97,18 @@ export class SchedulerService {
 
                 if (currentHour < startHour || currentHour >= endHour) {
                     // Outside Window. Reschedule.
-                    // Simple Reschedule: Check back in 1 hour or calculate delay?
                     // Calculate delay until StartHour (today or tomorrow)
                     let delayMs = 60 * 60 * 1000; // Default 1 hr
 
                     if (currentHour >= endHour) {
                         // Tomorrow at StartHour
-                        // (24 - Current + Start) hours
                         delayMs = (24 - currentHour + startHour) * 3600 * 1000;
                     } else if (currentHour < startHour) {
                         // Today at StartHour
                         delayMs = (startHour - currentHour) * 3600 * 1000;
                     }
 
-                    // Add a bit of jitter (0-5 mins) to avoid thundering herd at 09:00:00
+                    // Add a bit of jitter (0-5 mins) to avoid thundering herd
                     delayMs += Math.random() * 5 * 60 * 1000;
 
                     await prisma.campaignLead.update({
@@ -144,20 +149,16 @@ export class SchedulerService {
                 }
             } catch (error) {
                 console.error(`[Scheduler] Redis Get Error: ${error}`);
-                // Fallback to now if redis fails
             }
 
             for (const job of mailboxJobs) {
-                // Variable Delay: 2 to 5 minutes (user request)
-                // 2 mins = 120,000 ms
-                // 5 mins = 300,000 ms
-                // Range = 300,000 - 120,000 = 180,000 ms
-                const minDelay = 2 * 60 * 1000;
-                const variance = 3 * 60 * 1000;
-                const variableDelay = Math.floor(Math.random() * variance) + minDelay;
+                // Use Campaign Pacing Interval (Minutes -> Milliseconds)
+                // Default to 5 minutes if not set in DB
+                const pacingMinutes = job.campaign.pacingInterval || 5;
+                const pacingDelay = pacingMinutes * 60 * 1000;
 
                 // Schedule at the next available slot
-                const scheduledTime = nextSendAtTs + variableDelay;
+                const scheduledTime = nextSendAtTs + pacingDelay;
 
                 // Calculate delay relative to NOW for the queue
                 const queueDelay = Math.max(0, scheduledTime - Date.now());
@@ -170,7 +171,7 @@ export class SchedulerService {
 
             // Save the new nextSendAt to Redis
             try {
-                // Set TTL to 24 hours just to keep it clean if mailbox goes inactive
+                // Set TTL to 24 hours
                 await redisClient.set(redisKey, nextSendAtTs.toString(), 'EX', 86400);
             } catch (error) {
                 console.error(`[Scheduler] Redis Set Error: ${error}`);
@@ -313,6 +314,57 @@ export class SchedulerService {
                     data: { status: 'FAILED', failureReason: String(err) }
                 });
                 await eventService.logEvent('EMAIL_FAILED', job.campaign.id, job.lead.id, step.id, { error: String(err) });
+            }
+        }
+    }
+
+    async checkCampaignCompletion() {
+        // Find ACTIVE campaigns where ALL leads are in terminal states (REPLIED, IGNORED, FAILED)
+        // Or if all leads have finished their sequences.
+
+        // This is a bit expensive to run every poll. Maybe run every 10th poll or separate cron.
+        // For now, let's keep it simple: Find campaigns that are ACTIVE but have NO pending leads.
+
+        const activeCampaigns = await prisma.campaign.findMany({
+            where: { status: 'ACTIVE' },
+            select: { id: true, name: true }
+        });
+
+        for (const campaign of activeCampaigns) {
+            const pendingLeads = await prisma.campaignLead.count({
+                where: {
+                    campaignId: campaign.id,
+                    status: { in: ['NEW', 'CONTACTED'] },
+                    // If currentStep < sequences.count, it's pending.
+                    // But 'CONTACTED' implies we are waiting.
+                    // If 'nextActionAt' is null, it might be done? 
+                    // No, 'nextActionAt' is null if we are waiting for a reply and it's 'IF_NO_REPLY'.
+                    // So we can't just check pendingLeads count easily without checking specific conditions.
+
+                    // Simplified: If NO leads have 'nextActionAt' set? 
+                    // No, that misses leads waiting for reply.
+                }
+            });
+
+            // To properly detect "Completion", we need to know if there's ANY future work.
+            // Future work = 
+            // 1. Leads with nextActionAt != null (Scheduled emails)
+            // 2. Leads with status 'NEW' (Not started)
+            // 3. What about leads waiting for reply? If timeout passes? 
+            //    Our scheduler handles "IF_NO_REPLY" by eventually moving to next step.
+
+            // So, checking if there are ANY leads with (status IN [NEW, CONTACTED]) should be enough?
+            // If 0 pending leads, campaign is done.
+
+            if (pendingLeads === 0) {
+                console.log(`[Scheduler] Campaign ${campaign.name} (${campaign.id}) is complete!`);
+                await prisma.campaign.update({
+                    where: { id: campaign.id },
+                    data: { status: 'COMPLETED' }
+                });
+
+                // TODO: Send Email Notification to User
+                // await emailService.sendNotification(userEmail, "Campaign Complete", ...);
             }
         }
     }

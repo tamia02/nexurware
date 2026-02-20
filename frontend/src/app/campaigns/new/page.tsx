@@ -32,9 +32,13 @@ export default function NewCampaignPage() {
     // Form State
     const [campaignName, setCampaignName] = useState('');
     const [selectedMailbox, setSelectedMailbox] = useState('');
-    const [startTime, setStartTime] = useState('09:00');
-    const [endTime, setEndTime] = useState('17:00');
+
+    // Scheduling State
+    const [startMode, setStartMode] = useState<'NOW' | 'LATER'>('NOW');
+    const [scheduledTime, setScheduledTime] = useState(''); // ISO string for datetime-local
+    const [pacingInterval, setPacingInterval] = useState(5); // Minutes
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
+
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
     const [sequences, setSequences] = useState<Step[]>([
         { type: 'EMAIL', subject: '', body: '', previewText: '', order: 0 },
@@ -93,12 +97,17 @@ export default function NewCampaignPage() {
         setSubmitting(true);
         try {
             // 1. Create Campaign
+            let finalScheduledAt = new Date().toISOString();
+            if (startMode === 'LATER' && scheduledTime) {
+                finalScheduledAt = new Date(scheduledTime).toISOString();
+            }
+
             const campaignRes = await api.post('/campaigns', {
                 name: campaignName,
                 mailboxId: selectedMailbox,
-                startTime,
-                endTime,
-                timezone
+                timezone,
+                scheduledAt: finalScheduledAt,
+                pacingInterval
             });
             const campaignId = campaignRes.data.id;
 
@@ -168,14 +177,91 @@ export default function NewCampaignPage() {
                                 ))}
                             </select>
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">Start Time ({timezone})</label>
-                                <input className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" type="time" value={startTime} onChange={e => setStartTime(e.target.value)} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            {/* Start Time Selection */}
+                            <div className="bg-gray-50 p-4 rounded border">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Start Time</label>
+                                <div className="flex gap-4 mb-4">
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="startMode"
+                                            checked={startMode === 'NOW'}
+                                            onChange={() => setStartMode('NOW')}
+                                            className="mr-2"
+                                        />
+                                        <span className="text-sm">Start Immediately</span>
+                                    </label>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="radio"
+                                            name="startMode"
+                                            checked={startMode === 'LATER'}
+                                            onChange={() => setStartMode('LATER')}
+                                            className="mr-2"
+                                        />
+                                        <span className="text-sm">Schedule for Later</span>
+                                    </label>
+                                </div>
+
+                                {startMode === 'LATER' && (
+                                    <div>
+                                        <input
+                                            type="datetime-local"
+                                            className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm"
+                                            value={scheduledTime}
+                                            onChange={e => setScheduledTime(e.target.value)}
+                                        />
+                                        <p className="text-xs text-gray-500 mt-1">Based on local time</p>
+                                    </div>
+                                )}
                             </div>
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700">End Time</label>
-                                <input className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2" type="time" value={endTime} onChange={e => setEndTime(e.target.value)} />
+
+                            {/* Pacing Control */}
+                            <div className="bg-gray-50 p-4 rounded border">
+                                <label className="block text-sm font-bold text-gray-700 mb-2">Pacing Limit</label>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-gray-600">Send 1 email every</span>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="60"
+                                        className="w-20 rounded-md border-gray-300 px-3 py-2 text-sm"
+                                        value={pacingInterval}
+                                        onChange={e => setPacingInterval(Number(e.target.value))}
+                                    />
+                                    <span className="text-sm text-gray-600">minutes</span>
+                                </div>
+                                <p className="text-xs text-gray-500 mt-2">
+                                    <strong>Safe Mode:</strong> Spreading emails helps avoid spam filters and improves deliverability.
+                                </p>
+
+                                {/* Estimated Completion */}
+                                <div className="mt-4 pt-4 border-t border-gray-200">
+                                    <p className="text-xs text-gray-600 font-bold">Estimated Completion:</p>
+                                    <p className="text-sm text-blue-600">
+                                        {(() => {
+                                            if (selectedLeads.length === 0) return "Select leads first to calculate";
+
+                                            let start = new Date();
+                                            if (startMode === 'LATER' && scheduledTime) {
+                                                start = new Date(scheduledTime);
+                                            }
+
+                                            // Duration in ms = (Leads - 1) * Interval * 60000
+                                            // The first email goes out immediately (or at start time), subsequent ones wait.
+                                            // Actually, my scheduler waits 'Interval' for the *second* email?
+                                            // Scheduler logic: `scheduledTime = nextSendAtTs + pacingDelay`.
+                                            // If nextSendAtTs is NOW, first email waits 5 mins.
+                                            // So roughly: Duration = Leads * Interval.
+
+                                            const durationMs = selectedLeads.length * pacingInterval * 60 * 1000;
+                                            const end = new Date(start.getTime() + durationMs);
+
+                                            return end.toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
+                                        })()}
+                                    </p>
+                                </div>
                             </div>
                         </div>
                         <div>

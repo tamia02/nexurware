@@ -21,6 +21,8 @@ interface CreateCampaignDTO {
     timezone?: string;
     mailboxId?: string;
     workspaceId?: string;
+    scheduledAt?: string; // ISO String
+    pacingInterval?: number;
 }
 
 export class CampaignService {
@@ -38,7 +40,9 @@ export class CampaignService {
                 timezone: data.timezone,
                 mailboxId: data.mailboxId,
                 status: 'DRAFT',
-                workspaceId: data.workspaceId
+                workspaceId: data.workspaceId,
+                scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : new Date(),
+                pacingInterval: data.pacingInterval || 5
             }
         });
     }
