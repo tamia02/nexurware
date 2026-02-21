@@ -26,6 +26,7 @@ const PORT = process.env.PORT || 3001;
 
 app.use(cors());
 app.use(express.json());
+app.set('trust proxy', 1); // Trust first proxy (Render)
 
 import { apiLimiter } from './middleware/rate-limit.middleware';
 app.use('/api/', apiLimiter);
