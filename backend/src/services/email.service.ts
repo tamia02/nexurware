@@ -3,10 +3,16 @@ import nodemailer from 'nodemailer';
 import { Mailbox } from '@prisma/client';
 
 export class EmailService {
+    private transporters: Map<string, nodemailer.Transporter> = new Map();
 
-    private createTransporter(mailbox: Mailbox) {
-        console.log(`[EmailService] Creating transporter for ${mailbox.email} (Host: ${mailbox.smtpHost}:${mailbox.smtpPort})`);
-        return nodemailer.createTransport({
+    private getTransporter(mailbox: Mailbox): nodemailer.Transporter {
+        const cacheKey = mailbox.id;
+        if (this.transporters.has(cacheKey)) {
+            return this.transporters.get(cacheKey)!;
+        }
+
+        console.log(`[EmailService] Creating pooled transporter for ${mailbox.email} (Host: ${mailbox.smtpHost}:${mailbox.smtpPort})`);
+        const transporter = nodemailer.createTransport({
             host: mailbox.smtpHost,
             port: mailbox.smtpPort,
             secure: mailbox.smtpPort === 465,
@@ -14,12 +20,18 @@ export class EmailService {
                 user: mailbox.smtpUser,
                 pass: mailbox.smtpPass,
             },
-            connectionTimeout: 10000, // 10s
-            greetingTimeout: 10000,   // 10s
+            pool: true,
+            maxConnections: 5,
+            maxMessages: 100,
+            connectionTimeout: 20000, // 20s
+            greetingTimeout: 20000,   // 20s
             socketTimeout: 30000,     // 30s
             debug: true,
             logger: true
         });
+
+        this.transporters.set(cacheKey, transporter);
+        return transporter;
     }
 
     async sendEmail(
@@ -31,7 +43,7 @@ export class EmailService {
         campaignLeadId?: string, // Phase 4
         sequenceId?: string
     ): Promise<{ messageId: string }> {
-        const transporter = this.createTransporter(mailbox);
+        const transporter = this.getTransporter(mailbox);
 
         let finalBody = html;
 
