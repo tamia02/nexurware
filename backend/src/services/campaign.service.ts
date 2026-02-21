@@ -38,10 +38,10 @@ export class CampaignService {
                 startTime: data.startTime,
                 endTime: data.endTime,
                 timezone: data.timezone,
-                mailboxId: data.mailboxId,
+                mailboxId: data.mailboxId || null,
                 status: 'DRAFT',
                 workspaceId: data.workspaceId,
-                scheduledAt: data.scheduledAt ? new Date(data.scheduledAt) : new Date(),
+                scheduledAt: (data.scheduledAt && !isNaN(Date.parse(data.scheduledAt))) ? new Date(data.scheduledAt) : new Date(),
                 pacingInterval: data.pacingInterval || 5
             }
         });
