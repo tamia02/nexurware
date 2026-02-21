@@ -5,14 +5,20 @@ import { Mailbox } from '@prisma/client';
 export class EmailService {
 
     private createTransporter(mailbox: Mailbox) {
+        console.log(`[EmailService] Creating transporter for ${mailbox.email} (Host: ${mailbox.smtpHost}:${mailbox.smtpPort})`);
         return nodemailer.createTransport({
             host: mailbox.smtpHost,
             port: mailbox.smtpPort,
-            secure: mailbox.smtpPort === 465, // true for 465, false for other ports
+            secure: mailbox.smtpPort === 465,
             auth: {
                 user: mailbox.smtpUser,
                 pass: mailbox.smtpPass,
             },
+            connectionTimeout: 10000, // 10s
+            greetingTimeout: 10000,   // 10s
+            socketTimeout: 30000,     // 30s
+            debug: true,
+            logger: true
         });
     }
 
@@ -48,6 +54,7 @@ export class EmailService {
         }
 
         try {
+            console.log(`[EmailService] Attempting to send email to ${to}...`);
             const info = await transporter.sendMail({
                 from: `"${mailbox.fromName || mailbox.name || mailbox.email}" <${mailbox.email}>`,
                 to,
@@ -56,7 +63,7 @@ export class EmailService {
                 replyTo: replyTo || undefined
             });
 
-            console.log(`Email sent: ${info.messageId}`);
+            console.log(`[EmailService] Success! MessageID: ${info.messageId}`);
             return { messageId: info.messageId };
         } catch (error) {
             console.error("Error sending email:", error);
