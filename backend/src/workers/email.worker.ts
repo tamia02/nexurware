@@ -1,5 +1,6 @@
 import { Worker } from 'bullmq';
 import { redisConfig } from '../config/redis';
+import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../services/email.service';
 import { EventService } from '../services/event.service';
 
