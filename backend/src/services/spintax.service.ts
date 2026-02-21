@@ -29,7 +29,7 @@ export class SpintaxService {
 
         let result = text;
         for (const [key, value] of Object.entries(variables)) {
-            const regex = new RegExp(`{{${key}}}`, 'g');
+            const regex = new RegExp(`{{${key}}}`, 'gi');
             result = result.replace(regex, String(value || '')); // Handle undefined gracefullly
         }
         return result;

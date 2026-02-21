@@ -10,6 +10,7 @@ const worker = new Worker('email-sending-queue', async (job) => {
     console.log(`[Worker] Processing Job ${job.id}`);
 
     const { campaignId, leadId, emailBody, subject, senderEmail, senderName, campaignLeadId, sequenceId } = job.data;
+    console.log(`[Worker] Job Data: Campaign=${campaignId}, Lead=${leadId}, CampLead=${campaignLeadId}, Sub=${subject}`);
 
     try {
         // 1. Fetch Fresh Data (Guard against stale jobs)

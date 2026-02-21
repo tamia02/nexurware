@@ -286,6 +286,7 @@ export class SchedulerService {
                     subject: subject,
                     senderEmail: mailbox.email,
                     senderName: mailbox.name || 'Nexusware User',
+                    campaignLeadId: job.id,
                     sequenceId: step.id
                 }, { delay });
 
