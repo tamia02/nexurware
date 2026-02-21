@@ -117,10 +117,16 @@ export default function LeadsPage() {
                     parsedLeads = parsedLeads.map((lead: any) => {
                         // Support 'customMessage' or 'message' or 'body'
                         const msg = lead.customMessage || lead.message || lead.body;
-                        if (msg) {
+                        const sub = lead.customSubject || lead.subject;
+
+                        if (msg || sub) {
                             return {
                                 ...lead,
-                                metadata: { ...lead.metadata, customMessage: msg }
+                                metadata: {
+                                    ...lead.metadata,
+                                    customMessage: msg,
+                                    customSubject: sub
+                                }
                             };
                         }
                         return lead;
@@ -245,7 +251,7 @@ export default function LeadsPage() {
 
                         <p className="text-sm text-gray-500 mb-2">
                             {isPersonalized
-                                ? <span>Upload a CSV with headers: <code>email, firstName, lastName, company, customMessage</code></span>
+                                ? <span>Upload a CSV with headers: <code>email, firstName, lastName, company, customSubject, customMessage</code></span>
                                 : <span>Upload a CSV with headers: <code>email, firstName, lastName, company</code></span>
                             }
                         </p>
@@ -278,7 +284,7 @@ export default function LeadsPage() {
                         <textarea
                             className="w-full h-32 border rounded-md p-2 font-mono text-sm"
                             placeholder={isPersonalized
-                                ? "email,firstName,customMessage\njohn@example.com,John,Hello John..."
+                                ? "email,firstName,customSubject,customMessage\njohn@example.com,John,Quick question,Hello John..."
                                 : "email,firstName,lastName,company\njohn@example.com,John,Doe,Acme Inc"
                             }
                             value={importText}

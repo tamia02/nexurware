@@ -330,9 +330,32 @@ export default function NewCampaignPage() {
                             </div>
                         )}
 
-                        <div className="bg-gray-100 p-2 rounded text-xs text-gray-600 mb-4 flex justify-between">
-                            <span><strong>Variables:</strong> <code>{"{{firstName}}"}</code>, <code>{"{{company}}"}</code></span>
-                            <span><strong>Spintax:</strong> <code>{"{{Hi|Hello}}"}</code></span>
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 mb-6">
+                            <h3 className="text-sm font-bold text-blue-900 mb-2 flex items-center gap-2">
+                                <Plus className="w-4 h-4" /> Personalization tags
+                            </h3>
+                            <p className="text-xs text-blue-800 mb-3">Copy-paste these tags to auto-fill lead details.</p>
+                            <div className="flex flex-wrap gap-2">
+                                {[
+                                    { tag: '{{firstName}}', desc: 'First Name' },
+                                    { tag: '{{company}}', desc: 'Company Name' },
+                                    { tag: '{{customSubject}}', desc: 'Lead\'s custom subject' },
+                                    { tag: '{{customMessage}}', desc: 'Lead\'s custom message' }
+                                ].map(item => (
+                                    <button
+                                        key={item.tag}
+                                        onClick={() => {
+                                            // Optional: Add click-to-copy or click-to-insert logic
+                                            navigator.clipboard.writeText(item.tag);
+                                        }}
+                                        className="bg-white border border-blue-200 px-2 py-1 rounded text-xs font-mono text-blue-700 hover:bg-blue-100 transition"
+                                        title={item.desc}
+                                    >
+                                        {item.tag}
+                                    </button>
+                                ))}
+                            </div>
+                            <p className="text-[10px] text-blue-500 mt-2 italic">Tip: Use {"{{customSubject}}"} in the Subject line if you imported individual subjects.</p>
                         </div>
 
                         {sequences.map((seq, idx) => (
@@ -376,10 +399,26 @@ export default function NewCampaignPage() {
                                         value={seq.body}
                                         onChange={e => updateStep(idx, 'body', e.target.value)}
                                         placeholder={idx === 0
-                                            ? "Hi {{firstName}},\n\n[Hook: 1-2 lines]\n\n[Main Idea: Single concept]\n\n[CTA: Clear ask]\n\nP.S. [Reward Loop]"
+                                            ? "Hi {{firstName}},\n\n[Hook: 1-2 lines]\n\n[Main Idea: Single concept]\n\n[CTA: Clear ask]\n\n{{customMessage}}"
                                             : "Hi {{firstName}},\n\nJust floating this to the top of your inbox..."}
                                     />
-                                    <p className="text-xs text-gray-400 mt-1 text-right">Plain text mode enabled for better deliverability.</p>
+                                    <div className="flex justify-between items-center mt-1">
+                                        <p className="text-xs text-gray-400">Plain text mode enabled for better deliverability.</p>
+                                        <button
+                                            className="text-xs text-blue-600 font-bold hover:underline"
+                                            onClick={() => {
+                                                const sample = leads.length > 0 ? leads[0] : null;
+                                                if (!sample) {
+                                                    alert("Add some leads in Step 2 first to see a preview!");
+                                                    return;
+                                                }
+                                                // Simple alert-based preview for now to keep it responsive
+                                                alert(`Preview For: ${sample.email}\n---\nSubject: ${seq.subject?.replace('{{firstName}}', 'John')}\n\n${seq.body?.replace('{{customMessage}}', '[Lead\'s Custom Message]')}`);
+                                            }}
+                                        >
+                                            View Preview
+                                        </button>
+                                    </div>
                                 </div>
 
                                 {idx > 0 && (

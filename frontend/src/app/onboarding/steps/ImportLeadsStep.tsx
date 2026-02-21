@@ -27,18 +27,22 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
             // Parse simplistic CSV (Email, Name)
             const lines = leadText.split('\n');
             const leads = lines.map(line => {
-                // If personalized: email, name, message
+                // If personalized: email, name, subject, message
                 const parts = line.split(',');
                 const email = parts[0]?.trim();
                 const name = parts[1]?.trim();
-                const message = isPersonalized ? parts.slice(2).join(',').trim() : undefined;
+                const subject = isPersonalized ? parts[2]?.trim() : undefined;
+                const message = isPersonalized ? parts.slice(3).join(',').trim() : undefined;
 
                 if (!email || !email.includes('@')) return null;
 
                 return {
                     email,
                     firstName: name,
-                    metadata: message ? { customMessage: message } : undefined
+                    metadata: {
+                        customSubject: subject,
+                        customMessage: message
+                    }
                 };
             }).filter(Boolean);
 
@@ -78,14 +82,14 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
                 <h3 className="text-lg font-medium">Add your first leads</h3>
                 <p className="text-sm text-gray-500 mb-2">
                     {isPersonalized
-                        ? "Paste your leads below (Email, Name, Message)"
+                        ? "Paste your leads below (Email, Name, Subject, Message)"
                         : "Paste your leads below (Email, Name)"
                     }
                 </p>
                 <button
                     onClick={() => {
                         const csvContent = isPersonalized
-                            ? "email,firstName,customMessage\njohn@example.com,John,Hello John I noticed...\njane@test.com,Jane,Hi Jane saw your profile..."
+                            ? "email,firstName,customSubject,customMessage\njohn@example.com,John,Quick question,Hello John I noticed...\njane@test.com,Jane,Checking in,Hi Jane saw your profile..."
                             : "email,firstName\njohn@example.com,John Doe\njane@test.com,Jane";
 
                         const blob = new Blob([csvContent], { type: 'text/csv' });
@@ -106,7 +110,7 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
                     className="w-full h-32 border border-gray-300 rounded-md p-2 font-mono text-sm"
                     value={leadText}
                     onChange={e => setLeadText(e.target.value)}
-                    placeholder={isPersonalized ? "email@example.com, Name, Your custom message here" : "email@example.com, Name"}
+                    placeholder={isPersonalized ? "email@example.com, Name, Subject, Message" : "email@example.com, Name"}
                 />
             </div>
 
