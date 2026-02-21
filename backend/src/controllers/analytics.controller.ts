@@ -19,7 +19,7 @@ export class AnalyticsController {
             const sent = await prisma.campaignLead.count({
                 where: {
                     campaignId: id,
-                    status: { not: 'NEW' }
+                    status: { in: ['SENT', 'REPLIED', 'BOUNCED'] }
                 }
             });
 
@@ -79,7 +79,7 @@ export class AnalyticsController {
                 return res.json(JSON.parse(cached));
             }
 
-            const totalSent = await prisma.campaignLead.count({ where: { status: { not: 'NEW' } } });
+            const totalSent = await prisma.campaignLead.count({ where: { status: { in: ['SENT', 'REPLIED', 'BOUNCED'] } } });
             const totalReplied = await prisma.campaignLead.count({ where: { status: 'REPLIED' } });
 
             const uniqueOpens = await prisma.event.groupBy({

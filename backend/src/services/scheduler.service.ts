@@ -67,7 +67,7 @@ export class SchedulerService {
         const now = new Date();
         const jobs = await prisma.campaignLead.findMany({
             where: {
-                status: { in: ['NEW', 'CONTACTED'] },
+                status: { in: ['NEW', 'SENT'] }, // 'NEW' for first step, 'SENT' for follow-ups
                 nextActionAt: { lte: now },
                 campaign: {
                     status: CampaignStatus.ACTIVE as string,
@@ -303,9 +303,8 @@ export class SchedulerService {
                 await prisma.campaignLead.update({
                     where: { id: job.id },
                     data: {
-                        status: 'CONTACTED',
-                        currentStep: nextStepIndex,
-                        nextActionAt: nextActionAt
+                        status: 'QUEUED'
+                        // currentStep and nextActionAt are now updated by the worker AFTER successful send
                     }
                 });
 

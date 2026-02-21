@@ -1,10 +1,11 @@
 import { Worker } from 'bullmq';
 import { redisConfig } from '../config/redis';
-import { PrismaClient } from '@prisma/client';
 import { EmailService } from '../services/email.service';
+import { EventService } from '../services/event.service';
 
 const prisma = new PrismaClient();
 const emailService = new EmailService();
+const eventService = new EventService();
 
 const worker = new Worker('email-sending-queue', async (job) => {
     console.log(`[Worker] Processing Job ${job.id}`);
@@ -44,7 +45,7 @@ const worker = new Worker('email-sending-queue', async (job) => {
         // Personalization is handled by the SchedulerService now.
         // Worker just sends what it's given.
 
-        await emailService.sendEmail(
+        const info = await emailService.sendEmail(
             mailbox,
             lead.email,
             subject,
@@ -55,13 +56,41 @@ const worker = new Worker('email-sending-queue', async (job) => {
         );
 
         if (campaignLeadId) {
-            await prisma.campaignLead.update({
+            const campaignLead = await prisma.campaignLead.findUnique({
                 where: { id: campaignLeadId },
-                data: { status: 'SENT' }
+                include: { campaign: { include: { sequences: { orderBy: { order: 'asc' } } } } }
             });
+
+            if (campaignLead) {
+                const currentStepIndex = campaignLead.currentStep;
+                const nextStepIndex = currentStepIndex + 1;
+                const sequences = campaignLead.campaign.sequences;
+                let nextActionAt = null;
+
+                if (nextStepIndex < sequences.length) {
+                    const nextStep = sequences[nextStepIndex];
+                    const delayMs = (nextStep.delayDays * 24 * 3600 * 1000) + (nextStep.delayHours * 3600 * 1000);
+                    nextActionAt = new Date(Date.now() + delayMs);
+                }
+
+                await prisma.campaignLead.update({
+                    where: { id: campaignLeadId },
+                    data: {
+                        status: 'SENT',
+                        currentStep: nextStepIndex,
+                        nextActionAt: nextActionAt
+                    }
+                });
+
+                // Log Event
+                await eventService.logEvent('EMAIL_SENT' as any, campaignLead.campaignId, campaignLead.leadId, sequenceId || null, {
+                    messageId: info.messageId,
+                    subject
+                });
+            }
         }
 
-        console.log(`[Worker] Job ${job.id} Sent to ${lead.email} and status updated to SENT`);
+        console.log(`[Worker] Job ${job.id} Sent to ${lead.email} and status updated to SENT (Step incremented)`);
         return { sent: true };
 
     } catch (err) {
