@@ -40,21 +40,8 @@ const worker = new Worker('email-sending-queue', async (job) => {
         // 3. Send
         let finalBody = emailBody;
 
-        // Check for Custom Message in Lead Metadata
-        if (lead.metadata) {
-            try {
-                const metadata = typeof lead.metadata === 'string'
-                    ? JSON.parse(lead.metadata)
-                    : lead.metadata;
-
-                if (metadata.customMessage) {
-                    console.log(`[Worker] Using Custom Message for lead ${lead.email}`);
-                    finalBody = metadata.customMessage;
-                }
-            } catch (e) {
-                console.warn(`[Worker] Failed to parse metadata for lead ${lead.id}`, e);
-            }
-        }
+        // Personalization is handled by the SchedulerService now.
+        // Worker just sends what it's given.
 
         await emailService.sendEmail(
             mailbox,
