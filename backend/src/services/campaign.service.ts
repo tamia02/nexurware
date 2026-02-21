@@ -34,15 +34,15 @@ export class CampaignService {
         return await prisma.campaign.create({
             data: {
                 name: data.name,
-                dailyLimit: data.dailyLimit,
+                dailyLimit: (data.dailyLimit && !isNaN(Number(data.dailyLimit))) ? Number(data.dailyLimit) : 50,
                 startTime: data.startTime,
                 endTime: data.endTime,
                 timezone: data.timezone,
-                mailboxId: data.mailboxId || null,
+                mailboxId: (data.mailboxId && data.mailboxId !== 'none') ? data.mailboxId : null,
                 status: 'DRAFT',
                 workspaceId: data.workspaceId,
                 scheduledAt: (data.scheduledAt && !isNaN(Date.parse(data.scheduledAt))) ? new Date(data.scheduledAt) : new Date(),
-                pacingInterval: data.pacingInterval || 5
+                pacingInterval: (data.pacingInterval && !isNaN(Number(data.pacingInterval))) ? Number(data.pacingInterval) : 5
             }
         });
     }
@@ -54,12 +54,12 @@ export class CampaignService {
         return await prisma.sequence.create({
             data: {
                 campaignId,
-                order: stepData.order,
+                order: Number(stepData.order) || 0,
                 type: stepData.type,
-                subject: stepData.subject,
-                body: stepData.body, // In real app, validate spintax here
-                delayDays: stepData.delayDays || 0,
-                delayHours: stepData.delayHours || 0
+                subject: stepData.subject || '',
+                body: stepData.body || '',
+                delayDays: Number(stepData.delayDays) || 0,
+                delayHours: Number(stepData.delayHours) || 0
             }
         });
     }
