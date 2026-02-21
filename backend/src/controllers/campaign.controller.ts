@@ -18,6 +18,7 @@ export class CampaignController {
             const campaign = await campaignService.createCampaign(data);
             res.status(201).json(campaign);
         } catch (error) {
+            console.error('[CampaignController] Create Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }
@@ -31,6 +32,7 @@ export class CampaignController {
             if (!campaign) return res.status(404).json({ error: "Campaign not found" });
             res.json(campaign);
         } catch (error) {
+            console.error('[CampaignController] Get Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }
@@ -43,6 +45,7 @@ export class CampaignController {
             const campaigns = await campaignService.listCampaigns(user.workspaceId);
             res.json(campaigns);
         } catch (error) {
+            console.error('[CampaignController] List Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }
@@ -53,6 +56,7 @@ export class CampaignController {
             const step = await campaignService.addSequenceStep(id as string, req.body);
             res.status(201).json(step);
         } catch (error) {
+            console.error('[CampaignController] AddStep Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }
@@ -64,6 +68,7 @@ export class CampaignController {
             const result = await campaignService.addLeadToCampaign(id as string, leadId);
             res.json(result);
         } catch (error) {
+            console.error('[CampaignController] AddLead Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }
@@ -142,6 +147,7 @@ export class CampaignController {
             await campaignService.deleteCampaign(id as string);
             res.status(204).send();
         } catch (error) {
+            console.error('[CampaignController] Error:', error);
             res.status(500).json({ error: String(error) });
         }
     }

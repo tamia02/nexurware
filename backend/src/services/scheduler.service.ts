@@ -262,9 +262,19 @@ export class SchedulerService {
             // Simple Daily Limit Check
             if (mailbox.sentCount >= mailbox.dailyLimit) return;
 
-            const leadMetadata = typeof job.lead.metadata === 'string' ? JSON.parse(job.lead.metadata) : (job.lead.metadata || {});
-            const subject = spintaxService.personalize(spintaxService.parse(step.subject || ''), leadMetadata);
-            const body = spintaxService.personalize(spintaxService.parse(step.body || ''), leadMetadata);
+            const rawMetadata = typeof job.lead.metadata === 'string' ? JSON.parse(job.lead.metadata) : (job.lead.metadata || {});
+
+            // Merge direct lead fields for personalization
+            const personalizationData = {
+                firstName: job.lead.firstName || '',
+                lastName: job.lead.lastName || '',
+                company: job.lead.company || '',
+                email: job.lead.email || '',
+                ...rawMetadata
+            };
+
+            const subject = spintaxService.personalize(spintaxService.parse(step.subject || ''), personalizationData);
+            const body = spintaxService.personalize(spintaxService.parse(step.body || ''), personalizationData);
 
             try {
                 // Phase 2: Queuing with Rate Limits (handled by QueueService config)
