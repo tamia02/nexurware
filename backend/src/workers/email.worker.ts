@@ -54,7 +54,14 @@ const worker = new Worker('email-sending-queue', async (job) => {
             sequenceId
         );
 
-        console.log(`[Worker] Job ${job.id} Sent to ${lead.email}`);
+        if (campaignLeadId) {
+            await prisma.campaignLead.update({
+                where: { id: campaignLeadId },
+                data: { status: 'SENT' }
+            });
+        }
+
+        console.log(`[Worker] Job ${job.id} Sent to ${lead.email} and status updated to SENT`);
         return { sent: true };
 
     } catch (err) {
