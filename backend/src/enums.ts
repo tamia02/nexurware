@@ -1,6 +1,7 @@
 export const LeadStatus = {
     NEW: 'NEW',
     CONTACTED: 'CONTACTED',
+    SENT: 'SENT',
     QUEUED: 'QUEUED',
     REPLIED: 'REPLIED',
     BOOKED: 'BOOKED',
