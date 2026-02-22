@@ -13,7 +13,8 @@ export class QueueService {
      */
     static async addEmailJob(data: {
         campaignId: string;
-        leadId: string;
+        leadId?: string;
+        recipientEmail?: string;
         emailBody: string;
         subject: string;
         senderEmail: string;

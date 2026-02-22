@@ -69,7 +69,11 @@ export class MailboxService {
         });
 
         try {
-            await transporter.verify();
+            // verifier timeout to prevent hanging UI
+            const timeoutPromise = new Promise((_, reject) =>
+                setTimeout(() => reject(new Error("SMTP Connection Timeout (15s)")), 15000)
+            );
+            await Promise.race([transporter.verify(), timeoutPromise]);
             return { success: true };
         } catch (error) {
             console.error("SMTP Test Failed:", error);

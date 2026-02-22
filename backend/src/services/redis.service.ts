@@ -6,5 +6,11 @@ if (!process.env.REDIS_URL) {
 }
 
 export const redisClient = new Redis(process.env.REDIS_URL, {
-    maxRetriesPerRequest: null
+    maxRetriesPerRequest: null,
+    keepAlive: 30000, // 30s
+    connectTimeout: 15000, // 15s
+    retryStrategy: (times) => {
+        const delay = Math.min(times * 50, 2000);
+        return delay;
+    }
 });

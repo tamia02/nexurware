@@ -170,8 +170,69 @@ export class ImapService {
     // I will disable them for now or implement similarly.
 
     async checkReplies(mailbox: any): Promise<string[]> {
-        return [];
+        return new Promise(async (resolve, reject) => {
+            let imap: Imap;
+            try {
+                imap = await this.getConnection(mailbox);
+            } catch (err) {
+                console.error(`[IMAP] Connection failed for ${mailbox.email}:`, err);
+                return resolve([]);
+            }
+
+            imap.openBox('INBOX', false, (err: any, box: any) => {
+                if (err) {
+                    console.error('[IMAP] OpenBox Error:', err);
+                    return resolve([]);
+                }
+
+                // Search for UNSEEN messages from the last 24 hours
+                const yesterday = new Date();
+                yesterday.setDate(yesterday.getDate() - 1);
+
+                imap.search(['UNSEEN', ['SINCE', yesterday]], (err, results) => {
+                    if (err || !results || results.length === 0) return resolve([]);
+
+                    const f = imap.fetch(results, { bodies: 'HEADER.FIELDS (FROM)', struct: true });
+                    const senders: string[] = [];
+
+                    f.on('message', (msg) => {
+                        msg.on('body', (stream) => {
+                            simpleParser(stream, async (err, parsed) => {
+                                if (err) return;
+                                if (parsed.from?.value?.[0]?.address) {
+                                    senders.push(parsed.from.value[0].address);
+                                }
+                            });
+                        });
+                    });
+
+                    f.once('end', () => {
+                        resolve(senders);
+                    });
+                });
+            });
+        });
     }
 
-    async checkBounces(mailbox: any) { return []; }
-} 
+    async checkBounces(mailbox: any) {
+        // Basic implementation to flag bounces - looking for Mailer-Daemon
+        return new Promise(async (resolve) => {
+            let imap: Imap;
+            try {
+                imap = await this.getConnection(mailbox);
+            } catch (err) {
+                return resolve([]);
+            }
+
+            imap.openBox('INBOX', false, (err) => {
+                if (err) return resolve([]);
+
+                imap.search([['FROM', 'mailer-daemon']], (err, results) => {
+                    if (err || !results || results.length === 0) return resolve([]);
+                    // Logic to process bounces could be added here
+                    resolve(results);
+                });
+            });
+        });
+    }
+}

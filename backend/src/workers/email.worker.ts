@@ -11,13 +11,11 @@ const eventService = new EventService();
 const worker = new Worker('email-sending-queue', async (job) => {
     console.log(`[Worker] Processing Job ${job.id}`);
 
-    const { campaignId, leadId, emailBody, subject, senderEmail, senderName, campaignLeadId, sequenceId } = job.data;
-    console.log(`[Worker] Job Data: Campaign=${campaignId}, Lead=${leadId}, CampLead=${campaignLeadId}, Sub=${subject}`);
+    const { campaignId, leadId, recipientEmail, emailBody, subject, senderEmail, senderName, campaignLeadId, sequenceId } = job.data;
+    console.log(`[Worker] Job Data: Campaign=${campaignId}, Lead=${leadId || recipientEmail}, Sub=${subject}`);
 
     try {
-        // 1. Fetch Fresh Data (Guard against stale jobs)
-        // Actually, we pass everything in data. But we need Mailbox credentials.
-        // We only have senderEmail. We need to find the Mailbox.
+        // 1. Fetch Mailbox
         const mailbox = await prisma.mailbox.findUnique({
             where: { email: senderEmail }
         });
@@ -26,31 +24,22 @@ const worker = new Worker('email-sending-queue', async (job) => {
             throw new Error(`Mailbox ${senderEmail} not found`);
         }
 
-        // 2. Fetch Lead (for email address) if not passed?
-        // We passed leadId, but not leadEmail in data?
-        // Wait, 'addEmailJob' only took leadId.
-        // We need to fetch the lead to get the email!
-        // My previous worker impl (Step 887) fetched payload.
-        // My recent QueueService (Step 973) only passed IDs?
-        // Let's check logic:
-        // scheduler passed: campaignId, leadId, body, subject, sender...
-        // It did NOT pass target email address.
-        // So we MUST fetch Lead.
+        // 2. Resolve Recipient Email
+        let targetEmail = recipientEmail;
+        if (!targetEmail && leadId) {
+            const lead = await prisma.lead.findUnique({ where: { id: leadId } });
+            if (!lead) throw new Error(`Lead ${leadId} not found`);
+            targetEmail = lead.email;
+        }
 
-        const lead = await prisma.lead.findUnique({ where: { id: leadId } });
-        if (!lead) throw new Error(`Lead ${leadId} not found`);
+        if (!targetEmail) throw new Error("No recipient email found for job");
 
         // 3. Send
-        let finalBody = emailBody;
-
-        // Personalization is handled by the SchedulerService now.
-        // Worker just sends what it's given.
-
         const info = await emailService.sendEmail(
             mailbox,
-            lead.email,
+            targetEmail,
             subject,
-            finalBody,
+            emailBody,
             undefined,
             campaignLeadId,
             sequenceId
@@ -91,7 +80,7 @@ const worker = new Worker('email-sending-queue', async (job) => {
             }
         }
 
-        console.log(`[Worker] Job ${job.id} Sent to ${lead.email} and status updated to SENT (Step incremented)`);
+        console.log(`[Worker] Job ${job.id} Sent to ${targetEmail} and status updated to SENT (Step incremented)`);
         return { sent: true };
 
     } catch (err) {

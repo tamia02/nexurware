@@ -77,7 +77,7 @@ export class WarmupService {
         // Add to Queue
         const jobId = await QueueService.addEmailJob({
             campaignId: 'warmup',
-            leadId: 'warmup-' + Math.random().toString(36).substring(7),
+            recipientEmail: recipient,
             emailBody: body,
             subject: subject,
             senderEmail: mailbox.email,
