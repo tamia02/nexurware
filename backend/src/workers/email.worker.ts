@@ -93,7 +93,7 @@ const worker = new Worker('email-sending-queue', async (job) => {
                 try {
                     await prisma.campaignLead.update({
                         where: { id: campaignLeadId },
-                        data: { status: 'FAILED', failureReason: String(err) }
+                        data: { status: 'FAILED', failureReason: err.stack || String(err) }
                     });
                 } catch (dbErr) {
                     console.error('[Worker] Failed to update DB status:', dbErr);

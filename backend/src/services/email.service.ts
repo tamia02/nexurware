@@ -1,6 +1,10 @@
 import nodemailer from 'nodemailer';
+import dns from 'dns';
+import { promisify } from 'util';
 // @ts-ignore
 import { Mailbox } from '@prisma/client';
+
+const lookup = promisify(dns.lookup);
 
 export class EmailService {
     private transporters: Map<string, nodemailer.Transporter> = new Map();
@@ -23,15 +27,25 @@ export class EmailService {
             pool: true,
             maxConnections: 5,
             maxMessages: 100,
-            connectionTimeout: 20000, // 20s
-            greetingTimeout: 20000,   // 20s
-            socketTimeout: 30000,     // 30s
+            connectionTimeout: 30000, // Increased to 30s
+            greetingTimeout: 30000,   // Increased to 30s
+            socketTimeout: 45000,     // Increased to 45s
             debug: true,
             logger: true
         });
 
         this.transporters.set(cacheKey, transporter);
         return transporter;
+    }
+
+    private async checkDns(host: string) {
+        try {
+            const result = await lookup(host);
+            console.log(`[EmailService] DNS Lookup for ${host}: ${result.address}`);
+        } catch (err) {
+            console.error(`[EmailService] DNS Lookup FAILED for ${host}:`, err);
+            throw new Error(`DNS Lookup Failed for ${host}: ${err instanceof Error ? err.message : String(err)}`);
+        }
     }
 
     async sendEmail(
@@ -43,7 +57,11 @@ export class EmailService {
         campaignLeadId?: string, // Phase 4
         sequenceId?: string
     ): Promise<{ messageId: string }> {
+        // DNS Pre-check to catch DNS-related timeouts early
+        await this.checkDns(mailbox.smtpHost);
+
         const transporter = this.getTransporter(mailbox);
+        // ... (rest of the tracking logic)
 
         let finalBody = html;
 
