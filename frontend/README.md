@@ -33,4 +33,10 @@ You can check out [the Next.js GitHub repository](https://github.com/vercel/next
 
 The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
 
+### Backend Configuration
+The frontend is configured to talk to the EC2 backend via a secure Cloudflare Tunnel:
+`https://cross-summit-display-notices.trycloudflare.com/api`
+
+Make sure to set `NEXT_PUBLIC_API_URL` in your Vercel Environment Variables to this URL.
+
 Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
