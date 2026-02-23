@@ -1,4 +1,4 @@
-const { SpintaxService } = require('./backend/src/services/spintax.service');
+const { SpintaxService } = require('./backend/dist/services/spintax.service');
 const spintaxService = new SpintaxService();
 
 const leadMetadata = {
@@ -14,8 +14,8 @@ const templates = [
 ];
 
 templates.forEach((t, i) => {
-    const s = spintaxService.personalize(spintaxService.parse(t.subject), leadMetadata);
-    const b = spintaxService.personalize(spintaxService.parse(t.body), leadMetadata);
+    const s = spintaxService.parse(spintaxService.personalize(t.subject, leadMetadata));
+    const b = spintaxService.parse(spintaxService.personalize(t.body, leadMetadata));
     console.log(`--- Template ${i + 1} ---`);
     console.log(`Subject: ${s}`);
     console.log(`Body: ${b}`);

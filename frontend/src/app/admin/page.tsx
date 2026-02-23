@@ -53,6 +53,21 @@ export default function AdminPage() {
             .catch(err => alert('Failed to update plan'));
     };
 
+    const deleteWorkspace = (id: string, name: string) => {
+        if (!confirm(`CRITICAL: Are you sure you want to DELETE "${name}"? This will permanently remove all users, mailboxes, campaigns, and leads associated with this workspace.`)) return;
+        if (!confirm(`Type "DELETE" to confirm.`)) return; // Simple double check
+
+        api.delete(`/admin/workspaces/${id}`, { headers: { 'x-admin-secret': secret } })
+            .then(() => {
+                alert('Workspace deleted successfully');
+                setWorkspaces(workspaces.filter(w => w.id !== id));
+            })
+            .catch(err => {
+                console.error(err);
+                alert('Failed to delete workspace');
+            });
+    };
+
     const handleLogout = () => {
         localStorage.removeItem('admin_secret');
         setSecret('');
@@ -138,6 +153,12 @@ export default function AdminPage() {
                                                     Downgrade to FREE
                                                 </button>
                                             )}
+                                            <button
+                                                onClick={() => deleteWorkspace(ws.id, ws.name)}
+                                                className="inline-flex items-center px-3 py-1 border border-transparent text-xs font-medium rounded text-white bg-red-600 hover:bg-red-700"
+                                            >
+                                                Delete
+                                            </button>
                                         </div>
                                     </div>
                                 </li>

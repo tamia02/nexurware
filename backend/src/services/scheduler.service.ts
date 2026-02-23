@@ -279,8 +279,8 @@ export class SchedulerService {
                 ...rawMetadata
             };
 
-            const subject = spintaxService.personalize(spintaxService.parse(step.subject || ''), personalizationData);
-            const body = spintaxService.personalize(spintaxService.parse(step.body || ''), personalizationData);
+            const subject = spintaxService.parse(spintaxService.personalize(step.subject || '', personalizationData));
+            const body = spintaxService.parse(spintaxService.personalize(step.body || '', personalizationData));
 
             try {
                 // Phase 2: Queuing with Rate Limits (handled by QueueService config)
