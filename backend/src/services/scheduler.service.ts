@@ -270,6 +270,12 @@ export class SchedulerService {
                 lastName: job.lead.lastName || '',
                 company: job.lead.company || '',
                 email: job.lead.email || '',
+                // Common Aliases
+                name: job.lead.firstName || '',
+                first_name: job.lead.firstName || '',
+                last_name: job.lead.lastName || '',
+                company_name: job.lead.company || '',
+                companyName: job.lead.company || '',
                 ...rawMetadata
             };
 

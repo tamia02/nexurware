@@ -29,8 +29,9 @@ export class SpintaxService {
 
         let result = text;
         for (const [key, value] of Object.entries(variables)) {
-            const regex = new RegExp(`{{${key}}}`, 'gi');
-            result = result.replace(regex, String(value || '')); // Handle undefined gracefullly
+            // Support optional whitespace inside brackets: {{ firstName }}
+            const regex = new RegExp(`{{\\s*${key}\\s*}}`, 'gi');
+            result = result.replace(regex, String(value || ''));
         }
         return result;
     }
