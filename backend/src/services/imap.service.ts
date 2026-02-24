@@ -214,8 +214,7 @@ export class ImapService {
         });
     }
 
-    async checkBounces(mailbox: any) {
-        // Basic implementation to flag bounces - looking for Mailer-Daemon
+    async checkBounces(mailbox: any): Promise<string[]> {
         return new Promise(async (resolve) => {
             let imap: Imap;
             try {
@@ -227,10 +226,49 @@ export class ImapService {
             imap.openBox('INBOX', false, (err) => {
                 if (err) return resolve([]);
 
-                imap.search([['FROM', 'mailer-daemon']], (err, results) => {
+                // Search for messages from mailer-daemon or with "Delivery Status Notification"
+                imap.search([
+                    'UNSEEN',
+                    ['OR', ['FROM', 'mailer-daemon'], ['SUBJECT', 'Delivery Status Notification']]
+                ], (err, results) => {
                     if (err || !results || results.length === 0) return resolve([]);
-                    // Logic to process bounces could be added here
-                    resolve(results);
+
+                    const f = imap.fetch(results, { bodies: '' });
+                    const bouncedEmails: string[] = [];
+                    let processed = 0;
+
+                    f.on('message', (msg) => {
+                        msg.on('body', (stream) => {
+                            simpleParser(stream, async (err, parsed) => {
+                                processed++;
+                                if (!err) {
+                                    const body = (parsed.text || '') + (parsed.html || '');
+
+                                    // 1. Look for common NDR patterns in the body
+                                    // Final-Recipient: rfc822; user@example.com
+                                    const finalRecipientMatch = body.match(/Final-Recipient:\s*rfc822;\s*([^\s<>]+@[^\s<>]+)/i);
+                                    if (finalRecipientMatch && finalRecipientMatch[1]) {
+                                        bouncedEmails.push(finalRecipientMatch[1].toLowerCase());
+                                    } else {
+                                        // 2. Fallback: Look for "To: user@example.com" or similar in the quoted part
+                                        const fallbackMatch = body.match(/to:\s*([^\s<>]+@[^\s<>]+)/i);
+                                        if (fallbackMatch && fallbackMatch[1]) {
+                                            bouncedEmails.push(fallbackMatch[1].toLowerCase());
+                                        }
+                                    }
+                                }
+
+                                if (processed === results.length) {
+                                    resolve([...new Set(bouncedEmails)]); // Unique emails
+                                }
+                            });
+                        });
+                    });
+
+                    f.once('error', (fetchErr) => {
+                        console.error('[IMAP] Fetch Error during bounce check:', fetchErr);
+                        resolve([]);
+                    });
                 });
             });
         });

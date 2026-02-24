@@ -10,6 +10,7 @@ const PRESETS: Record<string, { name: string, smtp: string, imap: string, smtpPo
     outlook: { name: 'Outlook / Office 365', smtp: 'smtp.office365.com', imap: 'outlook.office365.com', smtpPort: 587, imapPort: 993 },
     zoho: { name: 'Zoho Mail', smtp: 'smtp.zoho.com', imap: 'imap.zoho.com', smtpPort: 465, imapPort: 993 },
     yahoo: { name: 'Yahoo Mail', smtp: 'smtp.mail.yahoo.com', imap: 'imap.mail.yahoo.com', smtpPort: 465, imapPort: 993 },
+    hostinger: { name: 'Hostinger Mail', smtp: 'smtp.hostinger.com', imap: 'imap.hostinger.com', smtpPort: 465, imapPort: 993 },
     custom: { name: 'Custom SMTP/IMAP', smtp: '', imap: '', smtpPort: 587, imapPort: 993 }
 };
 

@@ -183,11 +183,14 @@ export default function SettingsPage() {
                                                     setFormData(prev => ({ ...prev, smtpHost: 'smtp.gmail.com', smtpPort: 587, imapHost: 'imap.gmail.com', imapPort: 993 }));
                                                 } else if (key === 'outlook') {
                                                     setFormData(prev => ({ ...prev, smtpHost: 'smtp.office365.com', smtpPort: 587, imapHost: 'outlook.office365.com', imapPort: 993 }));
+                                                } else if (key === 'hostinger') {
+                                                    setFormData(prev => ({ ...prev, smtpHost: 'smtp.hostinger.com', smtpPort: 465, imapHost: 'imap.hostinger.com', imapPort: 993 }));
                                                 }
                                             }}
                                         >
                                             <option value="gmail">Gmail</option>
                                             <option value="outlook">Outlook</option>
+                                            <option value="hostinger">Hostinger</option>
                                             <option value="custom">Custom</option>
                                         </select>
                                     </div>

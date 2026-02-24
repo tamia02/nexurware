@@ -50,7 +50,30 @@ export class SchedulerService {
             }
 
             // Phase 2: Check Bounces
-            await imapService.checkBounces(mailbox);
+            const bounces = await imapService.checkBounces(mailbox);
+            if (bounces && bounces.length > 0) {
+                console.log(`[Scheduler] Found ${bounces.length} bounces for ${mailbox.email}`);
+                for (const email of bounces) {
+                    const leads = await prisma.lead.findMany({ where: { email: email } });
+                    for (const lead of leads) {
+                        // Stop any active campaign participation
+                        await prisma.campaignLead.updateMany({
+                            where: { leadId: lead.id, status: { in: ['NEW', 'CONTACTED', 'SENT', 'QUEUED'] } },
+                            data: { status: 'FAILED', failureReason: 'Email Bounced' }
+                        });
+
+                        await prisma.lead.update({
+                            where: { id: lead.id },
+                            data: { status: 'BOUNCED' }
+                        });
+
+                        await eventService.logEvent('BOUNCED', null, lead.id, null, {
+                            mailbox: mailbox.email,
+                            reason: 'NDR Received'
+                        });
+                    }
+                }
+            }
         }
     }
 
