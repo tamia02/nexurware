@@ -103,13 +103,43 @@ export class CampaignService {
     }
 
     async listCampaigns(workspaceId: string) {
-        return await prisma.campaign.findMany({
+        const campaigns = await prisma.campaign.findMany({
             where: { workspaceId },
             orderBy: { createdAt: 'desc' },
             include: {
                 _count: { select: { leads: true } }
             }
         });
+
+        const results = await Promise.all(campaigns.map(async (campaign) => {
+            const [sent, replied] = await Promise.all([
+                prisma.campaignLead.count({
+                    where: { campaignId: campaign.id, status: { in: ['SENT', 'REPLIED', 'BOUNCED'] } }
+                }),
+                prisma.campaignLead.count({
+                    where: { campaignId: campaign.id, status: 'REPLIED' }
+                })
+            ]);
+
+            const openedRows = await prisma.event.groupBy({
+                by: ['leadId'],
+                where: { campaignId: campaign.id, type: 'EMAIL_OPENED' }
+            });
+            const opened = openedRows.length;
+
+            return {
+                ...campaign,
+                stats: {
+                    sent,
+                    opened,
+                    replied,
+                    openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
+                    replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+                }
+            };
+        }));
+
+        return results;
     }
 
     async updateStatus(id: string, status: CampaignStatus) {

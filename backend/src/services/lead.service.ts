@@ -17,6 +17,8 @@ interface CreateLeadDTO {
     timezone?: string;
     metadata?: any;
     source?: string;
+    batchId?: string | null;
+    batchName?: string | null;
 }
 
 export class LeadService {
@@ -76,38 +78,29 @@ export class LeadService {
     }
 
     /**
-     * Bulk ingest leads
+     * Bulk ingest leads with optional batch naming
      */
-    async bulkIngest(leads: CreateLeadDTO[], workspaceId: string): Promise<{ created: number; updated: number; errors: any[] }> {
+    async bulkIngest(leads: CreateLeadDTO[], workspaceId: string, batchName?: string): Promise<{ created: number; updated: number; errors: any[] }> {
         let created = 0;
         let updated = 0;
         const errors = [];
-
-        // Pre-check limit for the batch roughly? 
-        // Or check one by one?
-        // Checking one by one is safer but slower. 
-        // Let's check initial count + batch size vs limit for fail-fast (optimistic).
+        const batchId = batchName ? require('crypto').randomUUID() : null;
 
         try {
-            // Optimization: Fail fast if totally over
             await this.checkLimit(workspaceId);
-        } catch (e: any) {
-            // If already over, we can't create ANY, but maybe updates are allowed?
-            // Since bulkIngest mixes create/update, this is tricky. 
-            // We'll let existing ones update, but fail creations.
-        }
+        } catch (e: any) { }
 
         for (const lead of leads) {
             try {
-                // Ensure workspaceId is attached
                 lead.workspaceId = workspaceId;
+                lead.batchId = batchId;
+                lead.batchName = batchName;
 
                 const existing = await prisma.lead.findUnique({ where: { email: lead.email } });
                 if (existing) {
-                    await this.upsertLead(lead); // Upsert will skip checkLimit if existing
+                    await this.upsertLead(lead);
                     updated++;
                 } else {
-                    // creating
                     try {
                         await this.checkLimit(workspaceId);
                         await this.upsertLead(lead);
@@ -124,19 +117,24 @@ export class LeadService {
         return { created, updated, errors };
     }
 
-    async getLeads(workspaceId: string, page = 1, limit = 10, search?: string, status?: string) {
+    async getLeads(workspaceId: string, page = 1, limit = 10, search?: string, status?: string, batchId?: string) {
         const skip = (page - 1) * limit;
-        const where: any = { workspaceId }; // Enforce workspace
+        const where: any = { workspaceId };
 
         if (status) {
             where.status = status;
         }
 
+        if (batchId) {
+            where.batchId = batchId;
+        }
+
         if (search) {
             where.OR = [
-                { email: { contains: search } },
-                { firstName: { contains: search } },
-                { lastName: { contains: search } }
+                { email: { contains: search, mode: 'insensitive' } },
+                { firstName: { contains: search, mode: 'insensitive' } },
+                { lastName: { contains: search, mode: 'insensitive' } },
+                { batchName: { contains: search, mode: 'insensitive' } }
             ];
         }
 
@@ -179,5 +177,23 @@ export class LeadService {
                 id: { in: ids }
             }
         });
+    }
+
+    async getUniqueBatches(workspaceId: string) {
+        const batches = await prisma.lead.findMany({
+            where: {
+                workspaceId,
+                batchId: { not: null }
+            },
+            distinct: ['batchId'],
+            select: {
+                batchId: true,
+                batchName: true
+            },
+            orderBy: {
+                createdAt: 'desc'
+            }
+        });
+        return batches;
     }
 }

@@ -48,6 +48,8 @@ model Lead {
   location  String?
   timezone  String? 
   metadata  String?
+  batchId   String?  // UUID for a specific upload session
+  batchName String?  // Human readable name (e.g. "Feb 2026 Leads")
   status    String   @default("NEW")
   classification String? // POSITIVE, NEGATIVE, OOO, OBJECTION, INFO
   createdAt DateTime @default(now())

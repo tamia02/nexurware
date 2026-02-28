@@ -13,6 +13,13 @@ interface Campaign {
     _count: {
         leads: number;
     };
+    stats?: {
+        sent: number;
+        opened: number;
+        replied: number;
+        openRate: number;
+        replyRate: number;
+    };
 }
 
 export default function CampaignsPage() {
@@ -57,12 +64,21 @@ export default function CampaignsPage() {
                                             </div>
                                             <div>
                                                 <p className="text-sm font-medium text-blue-600 truncate">{campaign.name}</p>
-                                                <p className="flex items-center text-sm text-gray-500 gap-2 mt-1">
-                                                    <FileText className="w-3 h-3" />
-                                                    {campaign.status}
-                                                    <span className="text-gray-300">•</span>
-                                                    {campaign._count.leads} leads
-                                                </p>
+                                                <div className="flex items-center text-xs text-gray-500 gap-3 mt-1">
+                                                    <span className="flex items-center gap-1"><FileText className="w-3 h-3" /> {campaign.status}</span>
+                                                    <span className="text-gray-300">|</span>
+                                                    <span>{campaign._count.leads} Leads</span>
+                                                    {campaign.stats && (
+                                                        <>
+                                                            <span className="text-gray-300">|</span>
+                                                            <span className="font-medium text-gray-800">{campaign.stats.sent} Sent</span>
+                                                            <span className="text-gray-300">|</span>
+                                                            <span className="text-green-600 font-semibold">{campaign.stats.openRate}% Open</span>
+                                                            <span className="text-gray-300">|</span>
+                                                            <span className="text-blue-600 font-semibold">{campaign.stats.replyRate}% Reply</span>
+                                                        </>
+                                                    )}
+                                                </div>
                                             </div>
                                         </div>
                                         <div className="flex items-center text-gray-400 gap-2">

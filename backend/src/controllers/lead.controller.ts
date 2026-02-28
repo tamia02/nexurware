@@ -24,14 +24,12 @@ export class LeadController {
             const user = (req as AuthRequest).user;
             if (!user || !user.workspaceId) return res.status(401).json({ error: 'Unauthorized' });
 
-            const { leads } = req.body;
+            const { leads, batchName } = req.body;
             if (!Array.isArray(leads)) {
                 return res.status(400).json({ error: "Invalid format. Expected { leads: [] }" });
             }
 
-            // Pass workspaceId to bulkIngest which now expects it as 2nd arg
-            // Also ensures the leads are processed for that workspace
-            const result = await leadService.bulkIngest(leads, user.workspaceId);
+            const result = await leadService.bulkIngest(leads, user.workspaceId, batchName);
             res.json(result);
         } catch (error) {
             res.status(500).json({ error: String(error) });
@@ -44,12 +42,13 @@ export class LeadController {
             const limit = Number(req.query.limit) || 10;
             const search = req.query.search as string;
             const status = req.query.status as string;
+            const batchId = req.query.batchId as string;
 
             // Get user from auth
             const user = (req as AuthRequest).user;
             if (!user || !user.workspaceId) return res.status(401).json({ error: 'Unauthorized' });
 
-            const result = await leadService.getLeads(user.workspaceId, page, limit, search, status);
+            const result = await leadService.getLeads(user.workspaceId, page, limit, search, status, batchId);
             res.json(result);
         } catch (error) {
             res.status(500).json({ error: String(error) });
@@ -91,6 +90,18 @@ export class LeadController {
 
             await leadService.deleteLeads(user.workspaceId, ids);
             res.json({ success: true, count: ids.length });
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
+
+    async listBatches(req: Request, res: Response) {
+        try {
+            const user = (req as AuthRequest).user;
+            if (!user || !user.workspaceId) return res.status(401).json({ error: 'Unauthorized' });
+
+            const batches = await leadService.getUniqueBatches(user.workspaceId);
+            res.json(batches);
         } catch (error) {
             res.status(500).json({ error: String(error) });
         }

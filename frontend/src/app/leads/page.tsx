@@ -14,6 +14,7 @@ interface Lead {
     email: string;
     company?: string;
     status: string;
+    batchName?: string;
 }
 
 export default function LeadsPage() {
@@ -24,21 +25,29 @@ export default function LeadsPage() {
     const [page, setPage] = useState(1);
     const [totalPages, setTotalPages] = useState(1);
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [batches, setBatches] = useState<{ batchId: string, batchName: string }[]>([]);
+    const [selectedBatch, setSelectedBatch] = useState('');
 
     // Import Modal State
     const [showImport, setShowImport] = useState(false);
     const [importText, setImportText] = useState('');
+    const [batchName, setBatchName] = useState('');
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
     const [importing, setImporting] = useState(false);
     const [isPersonalized, setIsPersonalized] = useState(false);
 
-    // Debounce search
     useEffect(() => {
         const timer = setTimeout(() => {
             fetchLeads(1); // Reset to page 1 on search change
         }, 500);
         return () => clearTimeout(timer);
-    }, [search, statusFilter]);
+    }, [search, statusFilter, selectedBatch]);
+
+    useEffect(() => {
+        api.get('/leads/batches')
+            .then(res => setBatches(res.data))
+            .catch(console.error);
+    }, []);
 
     // Handle pagination
     useEffect(() => {
@@ -57,6 +66,7 @@ export default function LeadsPage() {
             params.append('limit', '50');
             if (search) params.append('search', search);
             if (statusFilter) params.append('status', statusFilter);
+            if (selectedBatch) params.append('batchId', selectedBatch);
 
             const res = await api.get(`/leads?${params.toString()}`);
             setLeads(res.data.data);
@@ -134,7 +144,10 @@ export default function LeadsPage() {
                 }
 
                 try {
-                    const res = await api.post('/leads/bulk', { leads: parsedLeads });
+                    const res = await api.post('/leads/bulk', {
+                        leads: parsedLeads,
+                        batchName: batchName // Pass batch name to backend
+                    });
                     const { created, updated, errors } = res.data;
 
                     let message = `Import Complete: ${created} Created, ${updated} Updated.`;
@@ -212,6 +225,18 @@ export default function LeadsPage() {
                             <option value="BOUNCED">Bounced</option>
                         </select>
                     </div>
+                    <div className="w-64">
+                        <select
+                            className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm rounded-md"
+                            value={selectedBatch}
+                            onChange={(e) => setSelectedBatch(e.target.value)}
+                        >
+                            <option value="">All Batches</option>
+                            {batches.map(b => (
+                                <option key={b.batchId} value={b.batchId}>{b.batchName || 'Unnamed Batch'}</option>
+                            ))}
+                        </select>
+                    </div>
                 </div>
 
                 {selectedIds.length > 0 && (
@@ -275,6 +300,17 @@ export default function LeadsPage() {
                             />
                         </div>
 
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Batch Name (Optional)</label>
+                            <input
+                                type="text"
+                                placeholder='e.g. "Feb 2026 Prospecting"'
+                                className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                                value={batchName}
+                                onChange={(e) => setBatchName(e.target.value)}
+                            />
+                        </div>
+
                         <div className="relative flex py-2 items-center">
                             <div className="flex-grow border-t border-gray-300"></div>
                             <span className="flex-shrink mx-4 text-gray-400">OR</span>
@@ -319,6 +355,7 @@ export default function LeadsPage() {
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Company</th>
+                            <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Batch</th>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
@@ -346,6 +383,9 @@ export default function LeadsPage() {
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <div className="text-sm text-gray-500">{lead.company || '-'}</div>
+                                    </td>
+                                    <td className="px-6 py-4 whitespace-nowrap">
+                                        <div className="text-sm text-gray-500">{lead.batchName || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
