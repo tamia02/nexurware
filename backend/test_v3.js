@@ -1,61 +1,34 @@
-export class SpintaxService {
-
-    /**
-     * Parses nested spintax like "{{Hi|Hello|{{Hey|Greetings}}}}"
-     * Replaces with a random option.
-     */
-    parse(text: string): string {
+class SpintaxService {
+    parse(text) {
         if (!text) return '';
-
-        // Match {{ A | B }} or { A | B }
-        // We look for patterns with a pipe | inside braces
-        const regex = /\{+([^{|}]+\|[^{}]*)\}+/g;
+        const regex = /\{([^{|}]+\|[^{}]*)\}/g;
         let result = text;
-
         while (result.match(regex)) {
             result = result.replace(regex, (match, content) => {
-                const options = content.split('|').map(o => o.trim());
-                const randomOption = options[Math.floor(Math.random() * options.length)];
-                return randomOption;
+                const options = content.split('|');
+                return options[0]; // Just return first for testing
             });
         }
-
         return result;
     }
 
-    /**
-     * Replaces variables like {{firstName}} with actual data
-     * Uses a single pass with a global regex for efficiency and case-insensitivity
-     */
-    personalize(text: string, variables: Record<string, any>): string {
+    personalize(text, variables) {
         if (!text) return '';
-
-        // Log keys to see what's available
-        const availableKeys = Object.keys(variables);
-        console.log(`[Spintax] Personalizing. Available variables: ${availableKeys.join(', ')}`);
-
-        // Regex to find all {{ key }} occurrences
         return text.replace(/\{\{\s*([\w\s_-]+)\s*\}\}/gi, (match, key) => {
             const rawKey = key.trim();
             const lowerKey = rawKey.toLowerCase();
-
-            // 1. Direct Case-Insensitive Lookup
             const foundKey = Object.keys(variables).find(k => k.toLowerCase() === lowerKey);
             if (foundKey && variables[foundKey] !== undefined && variables[foundKey] !== null) {
                 return String(variables[foundKey]);
             }
-
-            // 2. Alias Mapping
-            const aliasMap: Record<string, string[]> = {
+            const aliasMap = {
                 firstName: ['first_name', 'name', 'fname', 'first'],
                 lastName: ['last_name', 'lname', 'last'],
                 company: ['company_name', 'companyName', 'org', 'organization', 'business'],
                 email: ['email_address', 'emailAddress', 'mail']
             };
-
             for (const [standardKey, aliases] of Object.entries(aliasMap)) {
                 if (lowerKey === standardKey.toLowerCase() || aliases.some(a => a.toLowerCase() === lowerKey)) {
-                    // Find if any of these standard keys or aliases exist in the variables
                     const keysToCheck = [standardKey, ...aliases];
                     for (const check of keysToCheck) {
                         const targetKey = Object.keys(variables).find(k => k.toLowerCase() === check.toLowerCase());
@@ -65,17 +38,17 @@ export class SpintaxService {
                     }
                 }
             }
-
-            // 3. Fallback: If we recognize it as a standard field but data is missing/empty, return empty string
             const standardFields = ['firstname', 'lastname', 'company', 'email', 'name', 'first_name', 'last_name', 'company_name'];
-            if (standardFields.includes(lowerKey)) {
-                console.log(`[Spintax] Warning: Tag {{${rawKey}}} matched a standard field but no data found. Returning empty string.`);
-                return '';
-            }
-
-            // 4. Default: Return original match if totally unknown to avoid stripping
-            console.log(`[Spintax] Unknown tag {{${rawKey}}}. Preserving.`);
+            if (standardFields.includes(lowerKey)) return '';
             return match;
         });
     }
 }
+
+const s = new SpintaxService();
+const vars = { firstName: 'John', company: '' };
+console.log('Test 1 (Success):', s.personalize('Hi {{firstName}}', vars));
+console.log('Test 2 (Empty/Missing):', s.personalize('From {{company}}', vars));
+console.log('Test 3 (Unknown):', s.personalize('What is {{unknown}}?', vars));
+console.log('Test 4 (Alias):', s.personalize('Hey {{first_name}}', vars));
+console.log('Test 5 (Case):', s.personalize('Hello {{FIRSTNAME}}', vars));

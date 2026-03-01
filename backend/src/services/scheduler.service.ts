@@ -319,6 +319,10 @@ export class SchedulerService {
             const subject = spintaxService.parse(spintaxService.personalize(step.subject || '', personalizationData));
             const body = spintaxService.parse(spintaxService.personalize(step.body || '', personalizationData));
 
+            console.log(`[Scheduler] Personalized Result for ${job.lead.email}:`);
+            console.log(`  Sub: ${subject}`);
+            console.log(`  Body: ${body.substring(0, 100)}...`);
+
             try {
                 // Phase 2: Queuing with Rate Limits (handled by QueueService config)
                 // Now with Smart Sending Delay
