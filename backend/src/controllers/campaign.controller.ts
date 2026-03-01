@@ -151,4 +151,16 @@ export class CampaignController {
             res.status(500).json({ error: String(error) });
         }
     }
+
+    async bulkDelete(req: Request, res: Response) {
+        try {
+            const { ids } = req.body;
+            if (!ids || !Array.isArray(ids)) return res.status(400).json({ error: "IDs array required" });
+            const result = await campaignService.bulkDeleteCampaigns(ids);
+            res.json({ status: "deleted", count: result.count });
+        } catch (error) {
+            console.error('[CampaignController] Bulk Delete Error:', error);
+            res.status(500).json({ error: String(error) });
+        }
+    }
 }

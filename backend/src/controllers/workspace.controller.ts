@@ -49,4 +49,21 @@ export class WorkspaceController {
             res.status(500).json({ error: String(error) });
         }
     }
+
+    async update(req: Request, res: Response) {
+        try {
+            const user = (req as AuthRequest).user;
+            if (!user || !user.workspaceId) return res.status(401).json({ error: 'Unauthorized' });
+
+            const workspace = await prisma.workspace.update({
+                where: { id: user.workspaceId },
+                data: req.body
+            });
+
+            res.json(workspace);
+        } catch (error) {
+            console.error('[WorkspaceController] Update Error:', error);
+            res.status(500).json({ error: String(error) });
+        }
+    }
 }

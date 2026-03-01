@@ -235,4 +235,15 @@ export class CampaignService {
             where: { id }
         });
     }
+
+    async bulkDeleteCampaigns(ids: string[]) {
+        // Bulk delete related records first
+        await prisma.event.deleteMany({ where: { campaignId: { in: ids } } });
+        await prisma.campaignLead.deleteMany({ where: { campaignId: { in: ids } } });
+        await prisma.sequence.deleteMany({ where: { campaignId: { in: ids } } });
+
+        return await prisma.campaign.deleteMany({
+            where: { id: { in: ids } }
+        });
+    }
 }

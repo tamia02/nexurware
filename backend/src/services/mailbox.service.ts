@@ -1,9 +1,9 @@
 // @ts-ignore
 import { PrismaClient, Mailbox } from '@prisma/client';
+import { WarmupService } from './warmup.service';
+import * as nodemailer from 'nodemailer';
 
 const prisma = new PrismaClient();
-
-import * as nodemailer from 'nodemailer';
 
 export class MailboxService {
 
@@ -106,11 +106,16 @@ export class MailboxService {
         return await prisma.mailbox.update({ where: { id }, data: { status } });
     }
 
-    async list(workspaceId: string): Promise<Mailbox[]> {
-        return await prisma.mailbox.findMany({
+    async list(workspaceId: string): Promise<any[]> {
+        const mailboxes = await prisma.mailbox.findMany({
             where: { workspaceId },
             orderBy: { email: 'asc' }
         });
+
+        return mailboxes.map(mb => ({
+            ...mb,
+            healthScore: WarmupService.calculateHealthScore(mb)
+        }));
     }
 
     async delete(id: string) {

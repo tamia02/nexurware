@@ -10,6 +10,7 @@ import { formatInTimeZone } from 'date-fns-tz'; // Phase 2: Timezones
 import { CampaignStatus } from '../enums';
 import { redisClient } from './redis.service';
 import { addMinutes } from 'date-fns';
+import { NotificationService } from './notification.service';
 
 // In-memory cache for mailbox throttling to reduce Redis requests
 const NEXT_SEND_CACHE: Record<string, number> = {};
@@ -299,7 +300,7 @@ export class SchedulerService {
             const rawMetadata = typeof job.lead.metadata === 'string' ? JSON.parse(job.lead.metadata) : (job.lead.metadata || {});
 
             // Merge direct lead fields for personalization
-            const personalizationData = {
+            const personalizationData: Record<string, any> = {
                 firstName: job.lead.firstName || '',
                 lastName: job.lead.lastName || '',
                 company: job.lead.company || '',
@@ -312,6 +313,8 @@ export class SchedulerService {
                 companyName: job.lead.company || '',
                 ...rawMetadata
             };
+
+            console.log(`[Scheduler] Personalizing email for ${job.lead.email} with tags:`, Object.keys(personalizationData));
 
             const subject = spintaxService.parse(spintaxService.personalize(step.subject || '', personalizationData));
             const body = spintaxService.parse(spintaxService.personalize(step.body || '', personalizationData));

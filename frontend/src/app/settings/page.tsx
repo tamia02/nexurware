@@ -17,11 +17,16 @@ interface Mailbox {
     dailyLimit: number;
     warmupEnabled: boolean;
     warmupStartedAt?: string;
+    healthScore: number;
 }
 
 export default function SettingsPage() {
     const { user, login } = useAuth();
-    const [activeTab, setActiveTab] = useState<'mailboxes' | 'profile'>('mailboxes');
+    const [activeTab, setActiveTab] = useState<'mailboxes' | 'profile' | 'notifications'>('mailboxes');
+
+    // Workspace & Notifications State
+    const [workspace, setWorkspace] = useState<any>(null);
+    const [workspaceLoading, setWorkspaceLoading] = useState(false);
 
     // Mailbox State
     const [mailboxes, setMailboxes] = useState<Mailbox[]>([]);
@@ -57,8 +62,25 @@ export default function SettingsPage() {
 
     useEffect(() => {
         loadMailboxes();
-        if (user) setProfileName(user.name);
+        if (user) {
+            setProfileName(user.name);
+            api.get('/workspace').then(res => setWorkspace(res.data)).catch(console.error);
+        }
     }, [user]);
+
+    // --- Workspace Handlers ---
+    const handleUpdateWorkspace = async (e: React.FormEvent) => {
+        e.preventDefault();
+        setWorkspaceLoading(true);
+        try {
+            await api.put('/workspace', workspace);
+            alert('Settings updated successfully!');
+        } catch (err: any) {
+            alert('Update failed: ' + (err.response?.data?.error || err.message));
+        } finally {
+            setWorkspaceLoading(false);
+        }
+    };
 
     // --- Mailbox Handlers ---
     const handleTest = async () => {
@@ -153,6 +175,16 @@ export default function SettingsPage() {
                         <User className="w-4 h-4" />
                         Profile & Security
                     </button>
+                    <button
+                        onClick={() => setActiveTab('notifications')}
+                        className={`${activeTab === 'notifications'
+                            ? 'border-blue-500 text-blue-600'
+                            : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2`}
+                    >
+                        <Lock className="w-4 h-4" />
+                        Workspace & Notifications
+                    </button>
                 </nav>
             </div>
 
@@ -238,6 +270,17 @@ export default function SettingsPage() {
                                             {mb.smtpHost}:{mb.smtpPort}
                                             <span className="mx-2">•</span>
                                             Limit: {mb.dailyLimit}/day
+                                            <span className="mx-2">•</span>
+                                            Health Score:
+                                            <div className="inline-flex items-center ml-2 w-24 h-2 bg-gray-200 rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full ${mb.healthScore >= 80 ? 'bg-green-500' : mb.healthScore >= 50 ? 'bg-yellow-500' : 'bg-red-500'}`}
+                                                    style={{ width: `${mb.healthScore}%` }}
+                                                ></div>
+                                            </div>
+                                            <span className={`ml-2 font-bold ${mb.healthScore >= 80 ? 'text-green-600' : mb.healthScore >= 50 ? 'text-yellow-600' : 'text-red-600'}`}>
+                                                {mb.healthScore}%
+                                            </span>
                                         </p>
                                     </div>
                                     <div className="flex items-center gap-4">
@@ -317,6 +360,76 @@ export default function SettingsPage() {
                         <div className="flex justify-end pt-4">
                             <Button type="submit" disabled={profileLoading}>
                                 {profileLoading ? 'Saving...' : 'Save Changes'}
+                            </Button>
+                        </div>
+                    </form>
+                </div>
+            )}
+
+            {/* Workspace & Notifications Tab */}
+            {activeTab === 'notifications' && (
+                <div className="bg-white shadow rounded-lg p-6 max-w-2xl">
+                    <form onSubmit={handleUpdateWorkspace} className="space-y-6">
+                        <div>
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Notification Settings</h3>
+                            <p className="text-sm text-gray-500 mb-6">Receive alerts on your phone whenever a lead responds or books a meeting.</p>
+
+                            <div className="space-y-4">
+                                <div className="flex items-start">
+                                    <div className="flex items-center h-5">
+                                        <input
+                                            id="notifyOnReply"
+                                            type="checkbox"
+                                            checked={workspace?.notifyOnReply || false}
+                                            onChange={e => setWorkspace({ ...workspace, notifyOnReply: e.target.checked })}
+                                            className="focus:ring-blue-500 h-4 w-4 text-blue-600 border-gray-300 rounded"
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm">
+                                        <label htmlFor="notifyOnReply" className="font-medium text-gray-700">Reply Alerts</label>
+                                        <p className="text-gray-500">Get notified when a lead replies to your campaign.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-6">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">WhatsApp Integration</h3>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">WhatsApp Number</label>
+                                <input
+                                    type="text"
+                                    placeholder="+1234567890"
+                                    value={workspace?.whatsappNumber || ''}
+                                    onChange={e => setWorkspace({ ...workspace, whatsappNumber: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                                />
+                                <p className="mt-2 text-xs text-gray-400 font-mono italic flex items-center gap-1">
+                                    <span className="p-1 px-2 border rounded border-gray-100 bg-gray-50">Coming Soon via Twilio</span>
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="border-t pt-6">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Telegram Integration</h3>
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700">Telegram Chat ID</label>
+                                <input
+                                    type="text"
+                                    placeholder="123456789"
+                                    value={workspace?.telegramId || ''}
+                                    onChange={e => setWorkspace({ ...workspace, telegramId: e.target.value })}
+                                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm p-2 border"
+                                />
+                                <p className="mt-2 text-xs text-gray-500">
+                                    Send /chatid to your bot to get this ID.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end pt-4">
+                            <Button type="submit" disabled={workspaceLoading}>
+                                {workspaceLoading ? 'Saving...' : 'Save Settings'}
                             </Button>
                         </div>
                     </form>

@@ -24,6 +24,12 @@ model Workspace {
   leads     Lead[]
   campaigns Campaign[]
   mailboxes Mailbox[]
+
+  // Notifications
+  whatsappNumber   String?
+  telegramId       String?
+  notifyOnReply    Boolean @default(false)
+  notifyOnMeeting  Boolean @default(false)
 }
 
 model User {

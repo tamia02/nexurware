@@ -12,6 +12,7 @@ router.patch('/:id/status', controller.updateStatus.bind(controller));
 router.get('/:id/analytics/steps', controller.getStepAnalytics.bind(controller));
 
 router.post('/:id/smart-resend', controller.resendNonOpeners.bind(controller));
+router.post('/bulk-delete', controller.bulkDelete.bind(controller));
 router.delete('/:id', controller.delete.bind(controller));
 
 // Sequence Steps

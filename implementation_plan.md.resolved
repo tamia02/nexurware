@@ -1,0 +1,44 @@
+# UI Enhancements & Notifications Plan
+
+This plan addresses reported issues with Batch/Delete operations, Health Score display, and implements a new notification system for WhatsApp and Telegram.
+
+## Proposed Changes
+
+### [Backend] Data Model & Business Logic
+
+#### [MODIFY] [schema.prisma](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/prisma/schema.prisma)
+- Add `whatsappNumber` (String?) and `telegramId` (String?) to the `Workspace` model.
+- Add `notificationTypes` (String[]?) to track which events trigger notifications (e.g., REPLIES, MEETINGS).
+
+#### [MODIFY] [campaign.service.ts](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/src/services/campaign.service.ts)
+- Implement `bulkDeleteCampaigns(ids: string[])` to handle multiple deletions efficiently.
+
+#### [NEW] [notification.service.ts](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/src/services/notification.service.ts)
+- Create a service to handle WhatsApp (via Twilio) and Telegram (via Bot API) notifications.
+- Include methods like `sendNotification(workspaceId, message)`.
+
+#### [MODIFY] [scheduler.service.ts](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/src/services/scheduler.service.ts)
+- Update [pollForReplies](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/src/services/scheduler.service.ts#26-83) to trigger `NotificationService.sendNotification` when a new reply is detected.
+
+---
+
+### [Frontend] UI & UX Improvements
+
+#### [MODIFY] [campaigns/page.tsx](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/frontend/src/app/campaigns/page.tsx)
+- Add multi-select checkboxes for campaigns.
+- Implement a "Bulk Delete" button that appears when campaigns are selected.
+
+#### [MODIFY] [settings/page.tsx](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/frontend/src/app/settings/page.tsx)
+- **Health Score**: Improve visibility by adding a color-coded status indicator and making the numeric score more prominent.
+- **Notifications**: Add a new section under "Profile & Security" or a dedicated "Integrations" tab to configure WhatsApp/Telegram alerts.
+
+## Verification Plan
+
+### Automated Tests
+- Test `bulkDeleteCampaigns` to ensure all related data (leads, events) is correctly handled.
+- Mock `NotificationService` to verify that triggers in [SchedulerService](file:///c:/Users/tasmi/OneDrive/agentic%20workflow/notebookllm/backend/src/services/scheduler.service.ts#24-422) work as expected.
+
+### Manual Verification
+- Verify multi-select and delete functionality in both Campaigns and Leads pages.
+- Confirm Health Score displays correctly for various mailbox states.
+- Test notification settings by updating phone/telegram details and manually triggering a "mock" reply.
