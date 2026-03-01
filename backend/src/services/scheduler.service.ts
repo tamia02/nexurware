@@ -9,6 +9,10 @@ import { WarmupService } from './warmup.service'; // Phase 3
 import { formatInTimeZone } from 'date-fns-tz'; // Phase 2: Timezones
 import { CampaignStatus } from '../enums';
 import { redisClient } from './redis.service';
+import { addMinutes } from 'date-fns';
+
+// In-memory cache for mailbox throttling to reduce Redis requests
+const NEXT_SEND_CACHE: Record<string, number> = {};
 
 const prisma = new PrismaClient();
 const emailService = new EmailService();
@@ -162,13 +166,19 @@ export class SchedulerService {
             let nextSendAtTs = Date.now();
 
             try {
-                const storedTs = await redisClient.get(redisKey);
-                if (storedTs) {
-                    nextSendAtTs = parseInt(storedTs);
-                    // If stored time is in the past, reset to now to avoid huge burst catches up
-                    if (nextSendAtTs < Date.now()) {
-                        nextSendAtTs = Date.now();
+                // Check in-memory cache first
+                if (NEXT_SEND_CACHE[mailboxId]) {
+                    nextSendAtTs = NEXT_SEND_CACHE[mailboxId];
+                } else {
+                    const storedTs = await redisClient.get(redisKey);
+                    if (storedTs) {
+                        nextSendAtTs = parseInt(storedTs);
+                        // If stored time is in the past, reset to now
+                        if (nextSendAtTs < Date.now()) {
+                            nextSendAtTs = Date.now();
+                        }
                     }
+                    NEXT_SEND_CACHE[mailboxId] = nextSendAtTs;
                 }
             } catch (error) {
                 console.error(`[Scheduler] Redis Get Error: ${error}`);
@@ -192,7 +202,8 @@ export class SchedulerService {
                 nextSendAtTs = scheduledTime;
             }
 
-            // Save the new nextSendAt to Redis
+            // Save to Cache & Redis (Reduced Redis usage)
+            NEXT_SEND_CACHE[mailboxId] = nextSendAtTs;
             try {
                 // Set TTL to 24 hours
                 await redisClient.set(redisKey, nextSendAtTs.toString(), 'EX', 86400);

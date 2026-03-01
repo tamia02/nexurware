@@ -107,7 +107,8 @@ const worker = new Worker('email-sending-queue', async (job) => {
     limiter: {
         max: 5,
         duration: 1000 // 5 sends per second
-    }
+    },
+    drainDelay: 10 // Wait 10 seconds before polling when queue is empty (reduces Redis requests)
 });
 
 worker.on('completed', job => {

@@ -29,7 +29,9 @@ export class QueueService {
                 delay: 2000
             },
             removeOnComplete: true,
-            removeOnFail: false,
+            removeOnFail: {
+                count: 100 // Keep only last 100 failed jobs to save Redis space/requests
+            },
             delay: opts?.delay || 0
         });
     }

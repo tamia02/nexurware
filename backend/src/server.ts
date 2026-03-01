@@ -1,7 +1,9 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import express from 'express';
 import './workers/email.worker'; // Start the Queue Worker
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { PrismaClient } from '@prisma/client';
 
 import leadRouter from './routes/lead.routes';
@@ -17,8 +19,6 @@ import workspaceRouter from './routes/workspace.routes';
 import widgetRouter from './routes/widget.routes';
 import adminRouter from './routes/admin.routes';
 import { InboxController } from './controllers/inbox.controller';
-
-dotenv.config();
 
 const app = express();
 const prisma = new PrismaClient();
