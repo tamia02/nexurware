@@ -12,6 +12,56 @@ export default function CreateCampaignStep({ onNext, defaultCompleted }: { onNex
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(defaultCompleted || false);
 
+    // Autocomplete State
+    const [focusedField, setFocusedField] = useState<string | null>(null);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [suggestionQuery, setSuggestionQuery] = useState('');
+
+    const availableTags = [
+        { tag: '{{firstName}}', desc: 'First Name' },
+        { tag: '{{lastName}}', desc: 'Last Name' },
+        { tag: '{{company}}', desc: 'Company Name' },
+        { tag: '{{email}}', desc: 'Email' }
+    ];
+
+    const handleFieldChange = (field: 'subject' | 'body', value: string) => {
+        if (field === 'subject') setSubject(value);
+        else setBody(value);
+
+        // Check for {{ trigger
+        if (value.includes('{{')) {
+            const lastDoubleBrace = value.lastIndexOf('{{');
+            const afterBrace = value.substring(lastDoubleBrace + 2);
+            if (!afterBrace.includes('}}')) {
+                setFocusedField(field);
+                setSuggestionQuery(afterBrace);
+                setShowSuggestions(true);
+            } else {
+                setShowSuggestions(false);
+            }
+        } else {
+            setShowSuggestions(false);
+        }
+    };
+
+    const insertTag = (tag: string) => {
+        if (!focusedField) return;
+        const currentContent = focusedField === 'subject' ? subject : body;
+
+        let newContent = '';
+        if (showSuggestions) {
+            const lastDoubleBrace = currentContent.lastIndexOf('{{');
+            newContent = currentContent.substring(0, lastDoubleBrace) + tag;
+        } else {
+            newContent = currentContent + tag;
+        }
+
+        if (focusedField === 'subject') setSubject(newContent);
+        else setBody(newContent);
+
+        setShowSuggestions(false);
+    };
+
     if (success) {
         return (
             <div className="text-center py-8">
@@ -67,17 +117,34 @@ export default function CreateCampaignStep({ onNext, defaultCompleted }: { onNex
                     />
                 </div>
 
-                <div>
+                <div className="relative">
                     <label className="block text-sm font-medium text-gray-700">Subject Line</label>
                     <input
                         type="text"
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2"
                         value={subject}
-                        onChange={e => setSubject(e.target.value)}
+                        onFocus={() => setFocusedField('subject')}
+                        onChange={e => handleFieldChange('subject', e.target.value)}
                     />
+                    {showSuggestions && focusedField === 'subject' && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                            {availableTags
+                                .filter(t => t.tag.toLowerCase().includes(suggestionQuery.toLowerCase()))
+                                .map(item => (
+                                    <button
+                                        key={item.tag}
+                                        onClick={() => insertTag(item.tag)}
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex justify-between items-center"
+                                    >
+                                        <span className="font-mono text-blue-600">{item.tag}</span>
+                                        <span className="text-xs text-gray-400">{item.desc}</span>
+                                    </button>
+                                ))}
+                        </div>
+                    )}
                 </div>
 
-                <div>
+                <div className="relative">
                     <div className="flex justify-between items-center mb-1">
                         <label className="block text-sm font-medium text-gray-700">Email Body</label>
                         <button
@@ -94,8 +161,25 @@ export default function CreateCampaignStep({ onNext, defaultCompleted }: { onNex
                     <textarea
                         className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-32"
                         value={body}
-                        onChange={e => setBody(e.target.value)}
+                        onFocus={() => setFocusedField('body')}
+                        onChange={e => handleFieldChange('body', e.target.value)}
                     />
+                    {showSuggestions && focusedField === 'body' && (
+                        <div className="absolute z-10 mt-1 w-full bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto bottom-full mb-1">
+                            {availableTags
+                                .filter(t => t.tag.toLowerCase().includes(suggestionQuery.toLowerCase()))
+                                .map(item => (
+                                    <button
+                                        key={item.tag}
+                                        onClick={() => insertTag(item.tag)}
+                                        className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex justify-between items-center"
+                                    >
+                                        <span className="font-mono text-blue-600">{item.tag}</span>
+                                        <span className="text-xs text-gray-400">{item.desc}</span>
+                                    </button>
+                                ))}
+                        </div>
+                    )}
                     <p className="text-xs text-gray-500 mt-1">Use <code>{`{{firstName}}`}</code> for variables.</p>
                 </div>
             </div>

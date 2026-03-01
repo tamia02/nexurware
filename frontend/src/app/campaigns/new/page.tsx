@@ -40,6 +40,19 @@ export default function NewCampaignPage() {
     const [timezone, setTimezone] = useState(Intl.DateTimeFormat().resolvedOptions().timeZone);
 
     const [selectedLeads, setSelectedLeads] = useState<string[]>([]);
+    const [focusedField, setFocusedField] = useState<{ index: number, field: string } | null>(null);
+    const [showSuggestions, setShowSuggestions] = useState(false);
+    const [suggestionQuery, setSuggestionQuery] = useState('');
+
+    const availableTags = [
+        { tag: '{{firstName}}', desc: 'First Name' },
+        { tag: '{{lastName}}', desc: 'Last Name' },
+        { tag: '{{company}}', desc: 'Company Name' },
+        { tag: '{{email}}', desc: 'Email' },
+        { tag: '{{customSubject}}', desc: 'Lead\'s custom subject' },
+        { tag: '{{customMessage}}', desc: 'Lead\'s custom message' }
+    ];
+
     const [sequences, setSequences] = useState<Step[]>([
         { type: 'EMAIL', subject: '', body: '', previewText: '', order: 0 },
         { type: 'EMAIL', subject: '', body: '', previewText: '', order: 2, delayDays: 7 }
@@ -87,6 +100,39 @@ export default function NewCampaignPage() {
         // @ts-ignore
         newSeqs[index][field] = value;
         setSequences(newSeqs);
+
+        // Check for {{ trigger
+        if (typeof value === 'string' && value.includes('{{')) {
+            const lastDoubleBrace = value.lastIndexOf('{{');
+            const afterBrace = value.substring(lastDoubleBrace + 2);
+            if (!afterBrace.includes('}}')) {
+                setFocusedField({ index, field });
+                setSuggestionQuery(afterBrace);
+                setShowSuggestions(true);
+            } else {
+                setShowSuggestions(false);
+            }
+        } else {
+            setShowSuggestions(false);
+        }
+    };
+
+    const insertTag = (tag: string) => {
+        if (!focusedField) return;
+        const { index, field } = focusedField;
+        const currentContent = (sequences[index] as any)[field] || '';
+
+        // If suggestions were open, we replace the prefix
+        let newContent = '';
+        if (showSuggestions) {
+            const lastDoubleBrace = currentContent.lastIndexOf('{{');
+            newContent = currentContent.substring(0, lastDoubleBrace) + tag;
+        } else {
+            newContent = currentContent + tag;
+        }
+
+        updateStep(index, field, newContent);
+        setShowSuggestions(false);
     };
 
     const removeStep = (index: number) => {
@@ -336,17 +382,16 @@ export default function NewCampaignPage() {
                             </h3>
                             <p className="text-xs text-blue-800 mb-3">Copy-paste these tags to auto-fill lead details.</p>
                             <div className="flex flex-wrap gap-2">
-                                {[
-                                    { tag: '{{firstName}}', desc: 'First Name' },
-                                    { tag: '{{company}}', desc: 'Company Name' },
-                                    { tag: '{{customSubject}}', desc: 'Lead\'s custom subject' },
-                                    { tag: '{{customMessage}}', desc: 'Lead\'s custom message' }
-                                ].map(item => (
+                                {availableTags.map(item => (
                                     <button
                                         key={item.tag}
                                         onClick={() => {
-                                            // Optional: Add click-to-copy or click-to-insert logic
-                                            navigator.clipboard.writeText(item.tag);
+                                            if (focusedField) {
+                                                insertTag(item.tag);
+                                            } else {
+                                                navigator.clipboard.writeText(item.tag);
+                                                alert(`Copied ${item.tag} to clipboard. Click a field first to insert directly!`);
+                                            }
                                         }}
                                         className="bg-white border border-blue-200 px-2 py-1 rounded text-xs font-mono text-blue-700 hover:bg-blue-100 transition"
                                         title={item.desc}
@@ -364,14 +409,31 @@ export default function NewCampaignPage() {
                                     {idx === 0 ? "Initial Email" : `Follow-up ${idx}`}
                                 </span>
 
-                                <div className="mb-3 mt-4">
+                                <div className="mb-3 mt-4 relative">
                                     <label className="block text-xs font-uppercase text-gray-500 font-bold mb-1">Subject</label>
                                     <input
                                         className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm focus:ring-blue-500 focus:border-blue-500"
                                         value={seq.subject}
+                                        onFocus={() => setFocusedField({ index: idx, field: 'subject' })}
                                         onChange={e => updateStep(idx, 'subject', e.target.value)}
                                         placeholder={idx === 0 ? "Quick question for {{firstName}}" : "Following up on my last email"}
                                     />
+                                    {showSuggestions && focusedField?.index === idx && focusedField?.field === 'subject' && (
+                                        <div className="absolute z-10 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                            {availableTags
+                                                .filter(t => t.tag.toLowerCase().includes(suggestionQuery.toLowerCase()))
+                                                .map(item => (
+                                                    <button
+                                                        key={item.tag}
+                                                        onClick={() => insertTag(item.tag)}
+                                                        className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex justify-between items-center"
+                                                    >
+                                                        <span className="font-mono text-blue-600">{item.tag}</span>
+                                                        <span className="text-xs text-gray-400">{item.desc}</span>
+                                                    </button>
+                                                ))}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="mb-3">
@@ -394,14 +456,33 @@ export default function NewCampaignPage() {
                                             Word Count: {seq.body?.trim() ? seq.body.trim().split(/\s+/).length : 0}
                                         </span>
                                     </label>
-                                    <textarea
-                                        className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-32 font-mono text-sm focus:ring-blue-500 focus:border-blue-500"
-                                        value={seq.body}
-                                        onChange={e => updateStep(idx, 'body', e.target.value)}
-                                        placeholder={idx === 0
-                                            ? "Hi {{firstName}},\n\n[Hook: 1-2 lines]\n\n[Main Idea: Single concept]\n\n[CTA: Clear ask]\n\n{{customMessage}}"
-                                            : "Hi {{firstName}},\n\nJust floating this to the top of your inbox..."}
-                                    />
+                                    <div className="relative">
+                                        <textarea
+                                            className="block w-full rounded-md border-gray-300 px-3 py-2 text-sm h-32 font-mono text-sm focus:ring-blue-500 focus:border-blue-500"
+                                            value={seq.body}
+                                            onFocus={() => setFocusedField({ index: idx, field: 'body' })}
+                                            onChange={e => updateStep(idx, 'body', e.target.value)}
+                                            placeholder={idx === 0
+                                                ? "Hi {{firstName}},\n\n[Hook: 1-2 lines]\n\n[Main Idea: Single concept]\n\n[CTA: Clear ask]\n\n{{customMessage}}"
+                                                : "Hi {{firstName}},\n\nJust floating this to the top of your inbox..."}
+                                        />
+                                        {showSuggestions && focusedField?.index === idx && focusedField?.field === 'body' && (
+                                            <div className="absolute z-10 mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                                                {availableTags
+                                                    .filter(t => t.tag.toLowerCase().includes(suggestionQuery.toLowerCase()))
+                                                    .map(item => (
+                                                        <button
+                                                            key={item.tag}
+                                                            onClick={() => insertTag(item.tag)}
+                                                            className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex justify-between items-center"
+                                                        >
+                                                            <span className="font-mono text-blue-600">{item.tag}</span>
+                                                            <span className="text-xs text-gray-400">{item.desc}</span>
+                                                        </button>
+                                                    ))}
+                                            </div>
+                                        )}
+                                    </div>
                                     <div className="flex justify-between items-center mt-1">
                                         <p className="text-xs text-gray-400">Plain text mode enabled for better deliverability.</p>
                                         <button
