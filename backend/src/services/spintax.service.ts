@@ -30,8 +30,21 @@ export class SpintaxService {
     personalize(text: string, variables: Record<string, any>): string {
         if (!text) return '';
 
+        // 0. Extract metadata if present and merge it into variables
+        let mergedVariables = { ...variables };
+        if (variables.metadata && typeof variables.metadata === 'string') {
+            try {
+                const meta = JSON.parse(variables.metadata);
+                // Standard fields in 'variables' override metadata if there's a conflict
+                mergedVariables = { ...meta, ...variables };
+                console.log(`[Spintax] Merged metadata fields:`, Object.keys(meta));
+            } catch (e) {
+                // Not JSON, ignore or log
+            }
+        }
+
         // Log keys to see what's available
-        const availableKeys = Object.keys(variables);
+        const availableKeys = Object.keys(mergedVariables);
         console.log(`[Spintax] Personalizing. Available variables: ${availableKeys.join(', ')}`);
 
         // Regex to find all {{ key }} occurrences
@@ -40,9 +53,15 @@ export class SpintaxService {
             const lowerKey = rawKey.toLowerCase();
 
             // 1. Direct Case-Insensitive Lookup
-            const foundKey = Object.keys(variables).find(k => k.toLowerCase() === lowerKey);
-            if (foundKey && variables[foundKey] !== undefined && variables[foundKey] !== null) {
-                return String(variables[foundKey]);
+            const foundKey = Object.keys(mergedVariables).find(k => k.toLowerCase() === lowerKey);
+            if (foundKey && mergedVariables[foundKey] !== undefined && mergedVariables[foundKey] !== null) {
+                const val = String(mergedVariables[foundKey]);
+                // Guard: If the value is literally the same as the tag (corruption), return empty to avoid "Hi firstName"
+                if (val.trim() === rawKey || val.trim() === match) {
+                    console.log(`[Spintax] Warning: Data corruption detected for tag ${match}. Value is literal string "${val}". Returning empty.`);
+                    return '';
+                }
+                return val;
             }
 
             // 2. Alias Mapping
@@ -58,9 +77,13 @@ export class SpintaxService {
                     // Find if any of these standard keys or aliases exist in the variables
                     const keysToCheck = [standardKey, ...aliases];
                     for (const check of keysToCheck) {
-                        const targetKey = Object.keys(variables).find(k => k.toLowerCase() === check.toLowerCase());
-                        if (targetKey && variables[targetKey] !== undefined && variables[targetKey] !== null && variables[targetKey] !== '') {
-                            return String(variables[targetKey]);
+                        const targetKey = Object.keys(mergedVariables).find(k => k.toLowerCase() === check.toLowerCase());
+                        if (targetKey && mergedVariables[targetKey] !== undefined && mergedVariables[targetKey] !== null && mergedVariables[targetKey] !== '') {
+                            const val = String(mergedVariables[targetKey]);
+                            // Guard: Only return if it's not literal corruption
+                            if (val.trim() !== check && val.trim() !== `{{${check}}}`) {
+                                return val;
+                            }
                         }
                     }
                 }

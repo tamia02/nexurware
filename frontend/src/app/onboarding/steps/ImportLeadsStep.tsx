@@ -25,7 +25,14 @@ export default function ImportLeadsStep({ onNext, defaultCompleted }: { onNext: 
         setLoading(true);
         try {
             // Parse simplistic CSV (Email, Name)
-            const lines = leadText.split('\n');
+            let lines = leadText.split('\n').map(l => l.trim()).filter(Boolean);
+
+            // Basic header detection: if the first line contains "email" or "name", skip it
+            if (lines.length > 1 && (lines[0].toLowerCase().includes('email') || lines[0].toLowerCase().includes('name'))) {
+                console.log('[Import] Skipping header row:', lines[0]);
+                lines = lines.slice(1);
+            }
+
             const leads = lines.map(line => {
                 // If personalized: email, name, subject, message
                 const parts = line.split(',');
