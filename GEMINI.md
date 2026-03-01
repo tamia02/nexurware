@@ -26,11 +26,16 @@ Nexusware is a scalable, "Instantly-like" cold email outreach platform designed 
 -   **Link Wrapping**: Automatic rewriting of links to track Click Rate.
 -   **Dashboard**: Real-time visualization of Sent, Open, Click, and Reply metrics.
 
+### 5. Smart Notifications
+-   **Multi-Channel Alerts**: WhatsApp and Telegram integration for real-time outreach alerts.
+-   **Trigger Events**: Instant notifications for lead replies and meeting bookings.
+
 ## Tech Stack
 -   **Frontend**: Next.js 14, Tailwind CSS, Lucide Icons.
 -   **Backend**: Node.js, Express.
 -   **Database**: PostgreSQL (Neon Tech), Prisma ORM.
 -   **Queue**: Redis (Upstash) + BullMQ.
+-   **Cloud Notifications**: Telegram Bot API / Axios.
 -   **Hosting**: Vercel (Frontend), Render (Backend).
 
 ## Deployment Guide
@@ -40,6 +45,7 @@ Ensure the following are set in your `.env`:
 -   `REDIS_URL`: `rediss://...` (Upstash).
 -   `API_URL`: Backend URL (for tracking pixels).
 -   `NEXT_PUBLIC_API_URL`: Backend URL (for frontend).
+-   `TELEGRAM_BOT_TOKEN`: Token for Telegram notification bot.
 
 ### Running Production
 1.  **Frontend**: `npm run build && npm start`
@@ -51,4 +57,5 @@ Ensure the following are set in your `.env`:
 -   **Phase 2 (Queue Infra)**: ✅ Complete
 -   **Phase 3 (Warmup)**: ✅ Complete
 -   **Phase 4 (Analytics)**: ✅ Complete
--   **Production Deployment**: Ready.
+-   **Phase 5 (Notifications & UI Fixes)**: ✅ Complete
+-   **Production Deployment**: Ready and pushed to GitHub/Vercel.
