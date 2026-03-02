@@ -238,72 +238,80 @@ export class CampaignService {
     }
 
     async cloneForNonOpeners(campaignId: string) {
-        // 1. Get Original
+        // 1. Get Original Campaign and Sequences
         const original = await prisma.campaign.findUnique({
             where: { id: campaignId },
             include: { sequences: true }
         });
         if (!original) throw new Error("Campaign not found");
 
-        // 2. Find Non-Openers
-        // Leads in this campaign who DO NOT have an EMAIL_OPENED event for this campaign
-        const nonOpeners = await prisma.campaignLead.findMany({
-            where: {
-                campaignId: campaignId,
-                lead: {
-                    events: {
-                        none: {
-                            type: 'EMAIL_OPENED',
-                            campaignId: campaignId
+        // Use Prisma transaction to ensure all cloning steps succeed or fail together safely
+        return await prisma.$transaction(async (tx) => {
+            // 2. Find Non-Openers Lead IDs
+            // Selecting only IDs to reduce memory overhead compared to pulling full lead objects
+            const nonOpenerLeads = await tx.campaignLead.findMany({
+                where: {
+                    campaignId: campaignId,
+                    lead: {
+                        events: {
+                            none: {
+                                type: 'EMAIL_OPENED',
+                                campaignId: campaignId
+                            }
                         }
                     }
-                }
+                },
+                select: { leadId: true }
+            });
+
+            if (nonOpenerLeads.length === 0) {
+                throw new Error("No non-openers found to resend to.");
             }
-        });
 
-        if (nonOpeners.length === 0) throw new Error("No non-openers found to resend to.");
-
-        // 3. Create New Campaign
-        const newCampaign = await prisma.campaign.create({
-            data: {
-                name: `Resend: ${original.name}`,
-                status: 'DRAFT',
-                workspaceId: original.workspaceId,
-                mailboxId: original.mailboxId,
-                dailyLimit: original.dailyLimit,
-                timezone: original.timezone
-            }
-        });
-
-        // 4. Clone Sequences
-        for (const seq of original.sequences) {
-            await prisma.sequence.create({
+            // 3. Create New Campaign Conceptually
+            const newCampaign = await tx.campaign.create({
                 data: {
-                    campaignId: newCampaign.id,
-                    type: seq.type,
-                    order: seq.order,
-                    subject: seq.subject,
-                    body: seq.body,
-                    delayDays: seq.delayDays,
-                    delayHours: seq.delayHours,
-                    condition: seq.condition
+                    name: `Resend: ${original.name}`,
+                    status: 'DRAFT',
+                    workspaceId: original.workspaceId,
+                    mailboxId: original.mailboxId,
+                    dailyLimit: original.dailyLimit,
+                    timezone: original.timezone
                 }
             });
-        }
 
-        // 5. Add Leads
-        // Bulk create might be better, but we need to init CampaignLead defaults
-        await prisma.campaignLead.createMany({
-            data: nonOpeners.map(cl => ({
-                campaignId: newCampaign.id,
-                leadId: cl.leadId,
-                status: 'NEW',
-                currentStep: 0,
-                nextActionAt: new Date()
-            }))
+            // 4. Bulk Clone Sequences
+            if (original.sequences.length > 0) {
+                await tx.sequence.createMany({
+                    data: original.sequences.map(seq => ({
+                        campaignId: newCampaign.id,
+                        type: seq.type,
+                        order: seq.order,
+                        subject: seq.subject,
+                        body: seq.body,
+                        delayDays: seq.delayDays,
+                        delayHours: seq.delayHours,
+                        condition: seq.condition
+                    }))
+                });
+            }
+
+            // 5. Bulk Add non-opener Leads to the new Campaign
+            await tx.campaignLead.createMany({
+                data: nonOpenerLeads.map(cl => ({
+                    campaignId: newCampaign.id,
+                    leadId: cl.leadId,
+                    status: 'NEW',
+                    currentStep: 0,
+                    nextActionAt: new Date()
+                }))
+            });
+
+            return newCampaign;
+        }, {
+            maxWait: 5000, // 5s max wait to acquire transaction 
+            timeout: 20000 // 20s total timeout for heavy copy operations
         });
-
-        return newCampaign;
     }
     async deleteCampaign(id: string) {
         // Manually delete related records to ensure it works regardless of DB constraint state

@@ -385,7 +385,19 @@ export default function LeadsPage() {
                                         <div className="text-sm text-gray-500">{lead.company || '-'}</div>
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <div className="text-sm text-gray-500">{lead.batchName || '-'}</div>
+                                        {lead.batchName ? (
+                                            <button
+                                                onClick={() => {
+                                                    const batch = batches.find(b => b.batchName === lead.batchName);
+                                                    if (batch) setSelectedBatch(batch.batchId);
+                                                }}
+                                                className="text-sm text-blue-600 hover:text-blue-800 hover:underline cursor-pointer"
+                                            >
+                                                {lead.batchName}
+                                            </button>
+                                        ) : (
+                                            <div className="text-sm text-gray-500">-</div>
+                                        )}
                                     </td>
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
