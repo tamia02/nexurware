@@ -93,6 +93,17 @@ export class CampaignController {
             res.status(500).json({ error: String(error) });
         }
     }
+
+    async getLeadTimeline(req: Request, res: Response) {
+        try {
+            const { id, leadId } = req.params;
+            const timeline = await campaignService.getLeadTimeline(id as string, leadId as string);
+            res.json(timeline);
+        } catch (error) {
+            res.status(500).json({ error: String(error) });
+        }
+    }
+
     async getStepAnalytics(req: Request, res: Response) {
         try {
             const { id } = req.params;

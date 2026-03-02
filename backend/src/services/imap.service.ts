@@ -120,7 +120,7 @@ export class ImapService {
                                 classification = ClassifierService.classifyReply(subject, body || '');
 
                                 // Update Lead Status based on Classification
-                                if (classification === 'POSITIVE' || classification === 'NEGATIVE' || classification === 'OOO') {
+                                if (['POSITIVE', 'NEGATIVE', 'OOO', 'MEETING'].includes(classification)) {
                                     // Only update if not already handled? Or always update latest sentiment?
                                     // Let's update classification field always.
                                     // And status to REPLIED if not already.

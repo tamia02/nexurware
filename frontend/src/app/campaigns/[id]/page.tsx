@@ -1,20 +1,26 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { useParams } from 'next/navigation';
+import { useParams, useSearchParams } from 'next/navigation';
 import { api } from '@/lib/api';
-import { ArrowLeft, Clock, Mail, MessageSquare, MousePointer2, Send } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Clock, Mail, MessageSquare, MousePointer2, Send } from 'lucide-react';
 import Link from 'next/link';
 import { StepFunnel } from '@/components/analytics/StepFunnel';
+import { LeadSidePanel } from '@/components/LeadSidePanel';
 
 // Types
 interface CampaignStats {
     sent: number;
+    delivered: number;
     opened: number;
     clicked: number;
     replied: number;
+    positives: number;
+    meetings: number;
+    bounced: number;
     openRate: number;
     replyRate: number;
+    bounceRate: number;
 }
 interface Campaign {
     id: string;
@@ -25,13 +31,17 @@ interface Campaign {
 
 export default function CampaignDetailsPage() {
     const params = useParams();
+    const searchParams = useSearchParams();
     const id = params?.id as string;
+    const defaultFilter = searchParams?.get('filter') || 'All';
 
     const [campaign, setCampaign] = useState<Campaign | null>(null);
     const [stats, setStats] = useState<CampaignStats | null>(null);
     const [leads, setLeads] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'leads' | 'sequences'>('sequences');
+    const [activeTab, setActiveTab] = useState<'leads' | 'sequences'>(defaultFilter !== 'All' ? 'leads' : 'sequences');
+    const [leadFilter, setLeadFilter] = useState(defaultFilter);
+    const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
 
     useEffect(() => {
         if (!id) return;
@@ -47,7 +57,7 @@ export default function CampaignDetailsPage() {
             ]).then(([campRes, statsRes, leadsRes]) => {
                 if (mounted) {
                     setCampaign(campRes.data);
-                    setStats(statsRes.data);
+                    setStats({ ...statsRes.data, ...campRes.data.stats });
                     setLeads(leadsRes.data || []);
                     if (isInitial) setLoading(false);
                 }
@@ -79,6 +89,17 @@ export default function CampaignDetailsPage() {
         { name: 'Reply Rate', value: `${stats?.replyRate.toFixed(1)}%`, icon: MessageSquare },
         { name: 'Clicked', value: stats?.clicked, icon: MousePointer2 },
     ];
+
+    const filteredLeads = leads.filter(job => {
+        if (leadFilter === 'All') return true;
+        if (leadFilter === 'Opened') return job.opensCount > 0;
+        if (leadFilter === 'Replied') return job.status === 'REPLIED' || job.lead?.classification === 'POSITIVE' || job.lead?.classification === 'MEETING';
+        if (leadFilter === 'Positive') return job.lead?.classification === 'POSITIVE' || job.lead?.classification === 'MEETING';
+        if (leadFilter === 'Meeting') return job.lead?.classification === 'MEETING';
+        if (leadFilter === 'Bounced') return job.status === 'BOUNCED';
+        if (leadFilter === 'No Activity') return job.opensCount === 0 && job.status !== 'REPLIED' && job.status !== 'BOUNCED';
+        return true;
+    });
 
     return (
         <div>
@@ -120,7 +141,7 @@ export default function CampaignDetailsPage() {
             </div>
 
             {/* KPI Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                 {kpis.map((stat, i) => (
                     <div key={i} className="bg-white p-4 rounded-lg shadow border border-gray-100 flex items-center">
                         <div className="p-3 rounded-full bg-blue-50 text-blue-600 mr-4">
@@ -132,6 +153,22 @@ export default function CampaignDetailsPage() {
                         </div>
                     </div>
                 ))}
+            </div>
+
+            {/* Funnel Bar */}
+            <div className="bg-white p-4 rounded-lg shadow border border-gray-100 mb-8 flex justify-between items-center text-sm font-medium overflow-x-auto whitespace-nowrap">
+                <div className="text-gray-500 mr-2 flex-shrink-0">Delivered: <span className="text-gray-900">{stats?.delivered || 0}</span></div>
+                <ArrowRight className="text-gray-300 w-4 h-4 mx-2 flex-shrink-0" />
+                <div className="text-gray-500 mr-2 flex-shrink-0">Opened: <span className="text-gray-900">{stats?.opened || 0}</span></div>
+                <ArrowRight className="text-gray-300 w-4 h-4 mx-2 flex-shrink-0" />
+                <div className="text-gray-500 mr-2 flex-shrink-0">Replied: <span className="text-gray-900">{stats?.replied || 0}</span></div>
+                <ArrowRight className="text-gray-300 w-4 h-4 mx-2 flex-shrink-0" />
+                <div className="text-purple-600 mr-2 flex-shrink-0">Positive: <span className="font-bold">{stats?.positives || 0}</span></div>
+                <ArrowRight className="text-gray-300 w-4 h-4 mx-2 flex-shrink-0" />
+                <div className="text-orange-600 flex-shrink-0">Meetings: <span className="font-bold">{stats?.meetings || 0}</span></div>
+                {(stats?.bounced ?? 0) > 0 && (
+                    <div className="ml-auto text-red-500 flex-shrink-0 pl-4 border-l">Bounced: {stats?.bounced}</div>
+                )}
             </div>
 
             {/* Tabs */}
@@ -183,54 +220,90 @@ export default function CampaignDetailsPage() {
                 )}
 
                 {activeTab === 'leads' && (
-                    <div className="overflow-x-auto">
-                        <table className="min-w-full divide-y divide-gray-200">
-                            <thead className="bg-gray-50">
-                                <tr>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Next Action</th>
-                                </tr>
-                            </thead>
-                            <tbody className="bg-white divide-y divide-gray-200">
-                                {leads.map((job) => (
-                                    <tr key={job.id}>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{job.lead?.email}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap">
-                                            <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
-                                                ${job.status === 'CONTACTED' ? 'bg-green-100 text-green-800' :
-                                                    job.status === 'REPLIED' ? 'bg-blue-100 text-blue-800' :
-                                                        job.status === 'NEW' ? 'bg-gray-100 text-gray-800' :
-                                                            'bg-red-100 text-red-800'}`}>
-                                                {job.status}
-                                            </span>
-                                            {job.status === 'FAILED' && job.failureReason && (
-                                                <div className="text-xs text-red-600 mt-1 max-w-[200px] break-words" title={job.failureReason}>
-                                                    {job.failureReason}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            Step {job.currentStep + 1}
-                                        </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                                            {job.nextActionAt ? new Date(job.nextActionAt).toLocaleString() : '-'}
-                                        </td>
-                                    </tr>
-                                ))}
-                                {leads.length === 0 && (
+                    <div className="space-y-4">
+                        {/* Filters */}
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {['All', 'Opened', 'Replied', 'Positive', 'Meeting', 'Bounced', 'No Activity'].map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => setLeadFilter(f)}
+                                    className={`px-3 py-1 rounded-full text-xs font-medium cursor-pointer transition-colors ${leadFilter === f ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'} border`}
+                                >
+                                    {f}
+                                </button>
+                            ))}
+                        </div>
+                        <div className="overflow-x-auto border border-gray-200 rounded-md">
+                            <table className="min-w-full divide-y divide-gray-200">
+                                <thead className="bg-gray-50">
                                     <tr>
-                                        <td colSpan={4} className="px-6 py-4 text-center text-sm text-gray-500">
-                                            No leads in this campaign yet.
-                                        </td>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Classification</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Current Step</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Opens</th>
+                                        <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Activity</th>
                                     </tr>
-                                )}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="bg-white divide-y divide-gray-200">
+                                    {filteredLeads.map((job) => (
+                                        <tr key={job.id} onClick={() => setSelectedLeadId(job.leadId)} className="hover:bg-blue-50 cursor-pointer transition-colors">
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">{job.lead?.email}</td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                    ${job.status === 'CONTACTED' ? 'bg-green-100 text-green-800' :
+                                                        job.status === 'REPLIED' ? 'bg-blue-100 text-blue-800' :
+                                                            job.status === 'BOUNCED' ? 'bg-red-100 text-red-800' :
+                                                                job.status === 'NEW' ? 'bg-gray-100 text-gray-800' :
+                                                                    'bg-red-100 text-red-800'}`}>
+                                                    {job.status}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm">
+                                                {job.lead?.classification && (
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full 
+                                                        ${job.lead.classification === 'POSITIVE' ? 'bg-purple-100 text-purple-800' :
+                                                            job.lead.classification === 'MEETING' ? 'bg-orange-100 text-orange-800' :
+                                                                job.lead.classification === 'NEGATIVE' ? 'bg-red-100 text-red-800' :
+                                                                    'bg-gray-100 text-gray-800'}`}>
+                                                        {job.lead.classification}
+                                                    </span>
+                                                )}
+                                                {!job.lead?.classification && <span className="text-gray-400">-</span>}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                Step {job.currentStep + 1}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {job.opensCount > 0 ? <span className="text-green-600 font-medium">{job.opensCount}</span> : '0'}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                                {job.lastActivityAt ? new Date(job.lastActivityAt).toLocaleString() : (job.nextActionAt ? new Date(job.nextActionAt).toLocaleString() : '-')}
+                                            </td>
+                                        </tr>
+                                    ))}
+                                    {filteredLeads.length === 0 && (
+                                        <tr>
+                                            <td colSpan={6} className="px-6 py-8 text-center text-sm text-gray-500 border-dashed border-2 border-gray-100">
+                                                No leads found for this filter.
+                                            </td>
+                                        </tr>
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 )}
             </div>
+
+            {/* Lead Side Panel */}
+            {selectedLeadId && (
+                <LeadSidePanel
+                    campaignId={id}
+                    leadId={selectedLeadId}
+                    onClose={() => setSelectedLeadId(null)}
+                />
+            )}
         </div>
     );
 }

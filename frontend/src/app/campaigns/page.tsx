@@ -13,12 +13,18 @@ interface Campaign {
     _count: {
         leads: number;
     };
+    mailbox?: {
+        email: string;
+    };
     stats?: {
         sent: number;
         opened: number;
         replied: number;
+        positives: number;
+        meetings: number;
         openRate: number;
         replyRate: number;
+        lastActivityAt?: string;
     };
 }
 
@@ -127,9 +133,21 @@ export default function CampaignsPage() {
                                                             <span className="text-gray-300">|</span>
                                                             <span className="font-medium text-gray-800">{campaign.stats.sent} Sent</span>
                                                             <span className="text-gray-300">|</span>
-                                                            <span className="text-green-600 font-semibold">{campaign.stats.openRate}% Open</span>
+                                                            <Link href={`/campaigns/${campaign.id}?filter=Opened`} className="text-green-600 font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>{campaign.stats.openRate}% Open</Link>
                                                             <span className="text-gray-300">|</span>
-                                                            <span className="text-blue-600 font-semibold">{campaign.stats.replyRate}% Reply</span>
+                                                            <Link href={`/campaigns/${campaign.id}?filter=Replied`} className="text-blue-600 font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>{campaign.stats.replyRate}% Reply</Link>
+                                                            <span className="text-gray-300">|</span>
+                                                            <Link href={`/campaigns/${campaign.id}?filter=Positive`} className="text-purple-600 font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>{campaign.stats.positives} Positive</Link>
+                                                            <span className="text-gray-300">|</span>
+                                                            <Link href={`/campaigns/${campaign.id}?filter=Meeting`} className="text-orange-600 font-semibold hover:underline" onClick={(e) => e.stopPropagation()}>{campaign.stats.meetings} Meetings</Link>
+                                                            <span className="text-gray-300">|</span>
+                                                            <span className="text-gray-500">Inbox: {campaign.mailbox?.email || 'None'}</span>
+                                                            {campaign.stats.lastActivityAt && (
+                                                                <>
+                                                                    <span className="text-gray-300">|</span>
+                                                                    <span className="text-gray-500">Last Active: {new Date(campaign.stats.lastActivityAt).toLocaleDateString()}</span>
+                                                                </>
+                                                            )}
                                                         </>
                                                     )}
                                                 </div>

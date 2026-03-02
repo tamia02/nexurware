@@ -22,11 +22,19 @@ export class ClassifierService {
             return 'NEGATIVE';
         }
 
-        // 3. Positive / Interested
+        // 3. Meeting / Demo
+        const meetingKeywords = [
+            'book a time', 'schedule', 'calendar', 'demo',
+            'available on', 'meeting'
+        ];
+        if (meetingKeywords.some(kw => text.includes(kw))) {
+            return 'MEETING';
+        }
+
+        // 4. Positive / Interested
         const positiveKeywords = [
-            'interested', 'call', 'book a time', 'schedule', 'calendar', 'demo',
-            'send more info', 'sounds good', 'let\'s talk', 'discuss further',
-            'available on', 'meeting', 'pricing'
+            'interested', 'call', 'send more info', 'sounds good',
+            'let\'s talk', 'discuss further', 'pricing'
         ];
         if (positiveKeywords.some(kw => text.includes(kw))) {
             return 'POSITIVE';

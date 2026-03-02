@@ -93,13 +93,58 @@ export class CampaignService {
     }
 
     async getCampaign(id: string, workspaceId: string) {
-        return await prisma.campaign.findFirst({
+        const campaign = await prisma.campaign.findFirst({
             where: { id, workspaceId },
             include: {
                 sequences: { orderBy: { order: 'asc' } },
-                _count: { select: { leads: true, events: true } }
+                _count: { select: { leads: true, events: true } },
+                mailbox: { select: { email: true } }
             }
         });
+
+        if (!campaign) return null;
+
+        const [sent, replied, bounced, positives, meetings] = await Promise.all([
+            prisma.campaignLead.count({
+                where: { campaignId: campaign.id, status: { in: ['SENT', 'REPLIED', 'BOUNCED'] } }
+            }),
+            prisma.campaignLead.count({
+                where: { campaignId: campaign.id, status: 'REPLIED' }
+            }),
+            prisma.campaignLead.count({
+                where: { campaignId: campaign.id, status: 'BOUNCED' }
+            }),
+            prisma.campaignLead.count({
+                where: { campaignId: campaign.id, lead: { classification: 'POSITIVE' } }
+            }),
+            prisma.campaignLead.count({
+                where: { campaignId: campaign.id, lead: { classification: 'MEETING' } }
+            })
+        ]);
+
+        const openedRows = await prisma.event.groupBy({
+            by: ['leadId'],
+            where: { campaignId: campaign.id, type: 'EMAIL_OPENED' }
+        });
+        const opened = openedRows.length;
+
+        const delivered = sent - bounced;
+
+        return {
+            ...campaign,
+            stats: {
+                sent,
+                delivered: delivered > 0 ? delivered : 0,
+                opened,
+                replied,
+                positives,
+                meetings,
+                bounced,
+                bounceRate: sent > 0 ? Math.round((bounced / sent) * 100) : 0,
+                openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
+                replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+            }
+        };
     }
 
     async listCampaigns(workspaceId: string) {
@@ -107,17 +152,29 @@ export class CampaignService {
             where: { workspaceId },
             orderBy: { createdAt: 'desc' },
             include: {
-                _count: { select: { leads: true } }
+                _count: { select: { leads: true } },
+                mailbox: { select: { email: true } }
             }
         });
 
         const results = await Promise.all(campaigns.map(async (campaign) => {
-            const [sent, replied] = await Promise.all([
+            const [sent, replied, positives, meetings, lastEvent] = await Promise.all([
                 prisma.campaignLead.count({
                     where: { campaignId: campaign.id, status: { in: ['SENT', 'REPLIED', 'BOUNCED'] } }
                 }),
                 prisma.campaignLead.count({
                     where: { campaignId: campaign.id, status: 'REPLIED' }
+                }),
+                prisma.campaignLead.count({
+                    where: { campaignId: campaign.id, lead: { classification: 'POSITIVE' } }
+                }),
+                prisma.campaignLead.count({
+                    where: { campaignId: campaign.id, lead: { classification: 'MEETING' } }
+                }),
+                prisma.event.findFirst({
+                    where: { campaignId: campaign.id },
+                    orderBy: { createdAt: 'desc' },
+                    select: { createdAt: true }
                 })
             ]);
 
@@ -133,8 +190,11 @@ export class CampaignService {
                     sent,
                     opened,
                     replied,
+                    positives,
+                    meetings,
                     openRate: sent > 0 ? Math.round((opened / sent) * 100) : 0,
                     replyRate: sent > 0 ? Math.round((replied / sent) * 100) : 0,
+                    lastActivityAt: lastEvent?.createdAt || campaign.createdAt
                 }
             };
         }));
@@ -150,11 +210,31 @@ export class CampaignService {
     }
 
     async getCampaignLeads(campaignId: string) {
-        return await prisma.campaignLead.findMany({
+        const leads = await prisma.campaignLead.findMany({
             where: { campaignId },
             include: { lead: true },
             orderBy: { nextActionAt: 'asc' }
         });
+
+        const results = await Promise.all(leads.map(async (cl) => {
+            const [opens, lastEvent] = await Promise.all([
+                prisma.event.count({
+                    where: { campaignId, leadId: cl.leadId, type: 'EMAIL_OPENED' }
+                }),
+                prisma.event.findFirst({
+                    where: { campaignId, leadId: cl.leadId },
+                    orderBy: { createdAt: 'desc' },
+                    select: { createdAt: true }
+                })
+            ]);
+            return {
+                ...cl,
+                opensCount: opens,
+                lastActivityAt: lastEvent?.createdAt || cl.updatedAt
+            };
+        }));
+
+        return results;
     }
 
     async cloneForNonOpeners(campaignId: string) {
@@ -244,6 +324,13 @@ export class CampaignService {
 
         return await prisma.campaign.deleteMany({
             where: { id: { in: ids } }
+        });
+    }
+
+    async getLeadTimeline(campaignId: string, leadId: string) {
+        return await prisma.event.findMany({
+            where: { campaignId, leadId },
+            orderBy: { createdAt: 'desc' }
         });
     }
 }
