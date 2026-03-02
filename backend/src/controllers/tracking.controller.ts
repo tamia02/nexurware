@@ -16,19 +16,7 @@ export class TrackingController {
             // Better to use a specific Tracking ID or just the CampaignLead ID if unique per email sent
             // But CampaignLead ID is constant across steps? 
             // For now, let's assume 'id' is CampaignLead ID.
-
             if (id && typeof id === 'string') {
-                // Log Event
-                await prisma.event.create({
-                    data: {
-                        type: 'EMAIL_OPENED',
-                        metadata: JSON.stringify({ ip: req.ip, userAgent: req.headers['user-agent'] }),
-                        // We need lookup to find campaignId/leadId from the passed ID
-                        // If ID passed is CampaignLeadId:
-                        // campaignId: ..., leadId: ...
-                    }
-                });
-
                 // Wait, creating event requires linking to Campaign/Lead.
                 // Fetch CampaignLead first
                 const cl = await prisma.campaignLead.findUnique({
